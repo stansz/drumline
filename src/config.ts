@@ -39,6 +39,12 @@ export const TOWERS: Record<TowerType, TowerStats> = {
   synth: { cost: 70, range: 4, damage: 14, splash: 0, chain: 2 },
 };
 
+export const TOWER_INFO: Record<TowerType, { name: string; role: string; description: string }> = {
+  kick: { name: 'Kick', role: 'Splash', description: 'Hits everything near its target, once per bar.' },
+  hat: { name: 'Hat', role: 'Rapid', description: 'Small hits, four times per bar.' },
+  synth: { name: 'Synth', role: 'Chain', description: 'Zaps its target, then arcs to 2 more enemies at half damage, once per bar.' },
+};
+
 export interface EnemyStats {
   hp: number;
   speed: number;

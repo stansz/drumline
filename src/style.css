@@ -83,6 +83,38 @@ body {
   border-radius: 6px;
 }
 
+#info {
+  width: 100%;
+  max-width: 896px;
+  min-height: 2.8em;
+  margin: 0 auto;
+  color: var(--enemy);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.glyph {
+  margin-right: 4px;
+}
+
+.glyph.kick {
+  color: var(--kick);
+}
+
+.glyph.hat {
+  color: var(--hat);
+}
+
+.glyph.synth {
+  color: var(--synth);
+}
+
+.cost {
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.65;
+}
+
 #controls {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(78px, 1fr));

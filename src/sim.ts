@@ -42,7 +42,17 @@ export type SimEvent =
       hit: boolean;
       chordSize: number;
     }
-  | { kind: 'hit'; x: number; y: number; towerType: TowerType }
+  | {
+      kind: 'shot';
+      towerType: TowerType;
+      col: number;
+      row: number;
+      x: number;
+      y: number;
+      chordSize: number;
+    }
+  | { kind: 'chain'; fromX: number; fromY: number; x: number; y: number }
+  | { kind: 'hit'; x: number; y: number; towerType: TowerType; enemyId: number }
   | { kind: 'kill'; x: number; y: number; enemyType: EnemyType }
   | { kind: 'leak'; lives: number }
   | { kind: 'waveStart'; wave: number }
@@ -286,6 +296,15 @@ export class Sim {
       if (!applyDamage || !target) continue;
 
       const targetPoint = pathPoint(target.progress);
+      events.push({
+        kind: 'shot',
+        towerType: tower.type,
+        col: tower.col,
+        row: tower.row,
+        x: targetPoint.x,
+        y: targetPoint.y,
+        chordSize,
+      });
       const baseDamage = stats.damage * multiplier;
 
       if (tower.type === 'kick') {
@@ -298,6 +317,7 @@ export class Sim {
               x: point.x,
               y: point.y,
               towerType: tower.type,
+              enemyId: enemy.id,
             });
           }
         }
@@ -308,6 +328,7 @@ export class Sim {
           x: targetPoint.x,
           y: targetPoint.y,
           towerType: tower.type,
+          enemyId: target.id,
         });
 
         const alreadyHit = new Set<Enemy>([target]);
@@ -331,10 +352,18 @@ export class Sim {
           const point = pathPoint(next.progress);
           next.hp -= baseDamage * 0.5;
           events.push({
+            kind: 'chain',
+            fromX: previousPoint.x,
+            fromY: previousPoint.y,
+            x: point.x,
+            y: point.y,
+          });
+          events.push({
             kind: 'hit',
             x: point.x,
             y: point.y,
             towerType: tower.type,
+            enemyId: next.id,
           });
           previous = next;
         }
@@ -345,6 +374,7 @@ export class Sim {
           x: targetPoint.x,
           y: targetPoint.y,
           towerType: tower.type,
+          enemyId: target.id,
         });
       }
     }

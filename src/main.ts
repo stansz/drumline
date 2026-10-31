@@ -3,10 +3,14 @@ import {
   ARP_STEPS,
   BASS_STEPS,
   BPM,
+  CHORD_BONUS_PER_TOWER,
   FAST_BPM,
   GRID_COLS,
   GRID_ROWS,
+  SELL_REFUND,
   STEPS_PER_BAR,
+  TOWERS,
+  TOWER_INFO,
   WAVES,
   stepSeconds,
 } from './config';
@@ -32,6 +36,7 @@ const canvas = byId<HTMLCanvasElement>('game');
 const moneyEl = byId<HTMLSpanElement>('money');
 const livesEl = byId<HTMLSpanElement>('lives');
 const waveEl = byId<HTMLSpanElement>('wave');
+const infoEl = byId<HTMLParagraphElement>('info');
 const overlay = byId<HTMLDivElement>('overlay');
 const overlayText = byId<HTMLDivElement>('overlay-text');
 const kickButton = byId<HTMLButtonElement>('tool-kick');
@@ -54,6 +59,7 @@ let fast = false;
 let muted = false;
 let selected: TowerType | 'sell' | null = null;
 let hover: { col: number; row: number } | null = null;
+let inspect: { col: number; row: number } | null = null;
 let queued: Array<{ at: number; event: SimEvent }> = [];
 let musicStep = 0;
 let stepMarks: Array<{ at: number; step: number }> = [];
@@ -68,6 +74,32 @@ function updateHud(): void {
   startWaveButton.disabled = sim.phase !== 'build';
 }
 
+function towerAt(cell: { col: number; row: number } | null) {
+  if (!cell) return null;
+  return sim.towers.find((tower) => tower.col === cell.col && tower.row === cell.row) ?? null;
+}
+
+function updateInfo(): void {
+  const tower = towerAt(hover) ?? towerAt(inspect);
+  if (tower) {
+    const info = TOWER_INFO[tower.type];
+    const stats = TOWERS[tower.type];
+    infoEl.textContent = `${info.name} · $${stats.cost} · ${info.role} · ${stats.damage} damage · range ${stats.range} — ${info.description}`;
+    return;
+  }
+  if (selected && selected !== 'sell') {
+    const info = TOWER_INFO[selected];
+    const stats = TOWERS[selected];
+    infoEl.textContent = `${info.name} · $${stats.cost} · ${info.role} · ${stats.damage} damage · range ${stats.range} — ${info.description}`;
+    return;
+  }
+  if (selected === 'sell') {
+    infoEl.textContent = `Click a tower to sell it for ${Math.round(SELL_REFUND * 100)}% of its cost.`;
+    return;
+  }
+  infoEl.textContent = `Towers fire when the playhead reaches their column. Towers firing together form a chord: +${CHORD_BONUS_PER_TOWER * 100}% damage each.`;
+}
+
 function updateSelection(): void {
   kickButton.classList.toggle('selected', selected === 'kick');
   hatButton.classList.toggle('selected', selected === 'hat');
@@ -78,6 +110,7 @@ function updateSelection(): void {
 function selectTool(tool: TowerType | 'sell' | null): void {
   selected = tool;
   updateSelection();
+  updateInfo();
 }
 
 function showStartOverlay(): void {
@@ -169,6 +202,7 @@ function restart(): void {
   queued = [];
   stepMarks = [];
   hover = null;
+  inspect = null;
   selected = null;
   fast = false;
   muted = false;
@@ -178,6 +212,7 @@ function restart(): void {
   fastButton.classList.remove('selected');
   muteButton.classList.remove('selected');
   updateHud();
+  updateInfo();
   if (started) {
     hideOverlay();
   } else {
@@ -201,18 +236,28 @@ canvas.addEventListener('click', (event) => {
   if (!cell) return;
   if (selected === 'sell') {
     sim.sellTower(cell.col, cell.row);
+    if (inspect && !towerAt(inspect)) inspect = null;
   } else if (selected) {
-    sim.placeTower(selected, cell.col, cell.row);
+    if (towerAt(cell)) {
+      inspect = { ...cell };
+    } else {
+      if (sim.placeTower(selected, cell.col, cell.row)) inspect = null;
+    }
+  } else {
+    inspect = towerAt(cell) ? { ...cell } : null;
   }
   updateHud();
+  updateInfo();
 });
 
 canvas.addEventListener('pointermove', (event) => {
   hover = cellAt(event);
+  updateInfo();
 });
 
 canvas.addEventListener('pointerleave', () => {
   hover = null;
+  updateInfo();
 });
 
 overlay.addEventListener('click', () => {
@@ -239,6 +284,10 @@ window.addEventListener('keydown', (event) => {
     event.preventDefault();
     sim.startWave();
     updateHud();
+    return;
+  }
+  if (event.key === 'Escape') {
+    selectTool(null);
     return;
   }
   switch (event.key.toLowerCase()) {
@@ -295,10 +344,22 @@ function frame(): void {
     playhead,
     selected,
     hover,
+    inspect,
   });
   requestAnimationFrame(frame);
 }
 
+const costButtons: Array<[HTMLButtonElement, TowerType]> = [
+  [kickButton, 'kick'],
+  [hatButton, 'hat'],
+  [synthButton, 'synth'],
+];
+for (const [button, type] of costButtons) {
+  const cost = button.querySelector<HTMLElement>('.cost');
+  if (cost) cost.textContent = `$${TOWERS[type].cost}`;
+}
+
 updateHud();
 updateSelection();
+updateInfo();
 requestAnimationFrame(frame);
