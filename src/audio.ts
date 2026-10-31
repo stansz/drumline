@@ -4,6 +4,26 @@ import type { TowerType } from './sim';
 
 const PENTATONIC = [220, 261.63, 293.66, 329.63, 392, 440, 523.25, 587.33];
 const REVERB_SECONDS = 2.2;
+const SOFT_CLIP_KNEE = 0.7;
+const SOFT_CLIP_CEILING = 0.95;
+const SOFT_CLIP_POINTS = 4097;
+
+// Linear below the knee, then eases toward the ceiling. A WaveShaper holds the last curve value
+// for any louder input, so this caps the output however much the limiter lets through.
+export function softClipCurve(): Float32Array<ArrayBuffer> {
+  const curve = new Float32Array(SOFT_CLIP_POINTS);
+  const headroom = SOFT_CLIP_CEILING - SOFT_CLIP_KNEE;
+  for (let i = 0; i < curve.length; i += 1) {
+    const input = (i / (curve.length - 1)) * 2 - 1;
+    const level = Math.abs(input);
+    const shaped =
+      level <= SOFT_CLIP_KNEE
+        ? level
+        : SOFT_CLIP_KNEE + headroom * Math.tanh((level - SOFT_CLIP_KNEE) / headroom);
+    curve[i] = Math.sign(input) * shaped;
+  }
+  return curve;
+}
 
 function clampRow(row: number): number {
   return Math.max(0, Math.min(7, row));
@@ -44,13 +64,18 @@ export class Audio_ {
     limiter.attack.value = 0.003;
     limiter.release.value = 0.15;
 
+    const softClip = ctx.createWaveShaper();
+    softClip.curve = softClipCurve();
+    softClip.oversample = '4x';
+
     this.analyser = ctx.createAnalyser();
     this.analyser.fftSize = 2048;
     this.analyserData = new Float32Array(this.analyser.fftSize);
 
     this.master.connect(this.filter);
     this.filter.connect(limiter);
-    limiter.connect(this.analyser);
+    limiter.connect(softClip);
+    softClip.connect(this.analyser);
     this.analyser.connect(ctx.destination);
 
     this.towerBus = ctx.createGain();
