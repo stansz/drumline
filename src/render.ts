@@ -259,13 +259,13 @@ export class Renderer {
         });
       }
 
-      if (event.chordSize >= 2 && this.chordLabelAt.get(event.col) !== this.lastNow) {
-        this.chordLabelAt.set(event.col, this.lastNow);
+      if (event.chordSize >= 2 && this.chordLabelAt.get(event.step) !== this.lastNow) {
+        this.chordLabelAt.set(event.step, this.lastNow);
         const multiplier =
           1 + CHORD_BONUS_PER_TOWER * (Math.min(event.chordSize, CHORD_MAX_TOWERS) - 1);
         this.labels.push({
           kind: 'label',
-          x: (event.col + 0.5) * CELL,
+          x: (event.step + 0.5) * CELL,
           y: 22,
           born: this.lastNow,
           life: 0.5,

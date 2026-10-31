@@ -117,7 +117,7 @@ body {
 
 #controls {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(78px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
   gap: 8px;
   width: 100%;
   max-width: 896px;
@@ -126,7 +126,7 @@ body {
 
 #controls button {
   min-height: 44px;
-  padding: 8px 6px;
+  padding: 8px 4px;
   border: 1px solid var(--grid);
   border-radius: 8px;
   background: var(--path);
@@ -136,6 +136,7 @@ body {
   font-weight: 700;
   cursor: pointer;
   touch-action: manipulation;
+  white-space: nowrap;
 }
 
 #controls button:active {

@@ -50,6 +50,7 @@ export type SimEvent =
       x: number;
       y: number;
       chordSize: number;
+      step: number;
     }
   | { kind: 'chain'; fromX: number; fromY: number; x: number; y: number }
   | { kind: 'hit'; x: number; y: number; towerType: TowerType; enemyId: number }
@@ -304,6 +305,7 @@ export class Sim {
         x: targetPoint.x,
         y: targetPoint.y,
         chordSize,
+        step: this.stepIndex,
       });
       const baseDamage = stats.damage * multiplier;
 

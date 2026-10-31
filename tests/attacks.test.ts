@@ -125,4 +125,16 @@ describe('attack events', () => {
     expect(shots).toHaveLength(2);
     expect(shots.every((shot) => shot.chordSize === 2)).toBe(true);
   });
+
+  it('a hat firing off its own column reports the step it fired on', () => {
+    const sim = new Sim();
+    expect(sim.placeTower('hat', 5, 0)).toBe(true);
+    addEnemy(sim, 9, 'brute', 5);
+    sim.stepIndex = 9;
+
+    const shots = shotEvents(sim.step());
+    expect(shots).toHaveLength(1);
+    expect(shots[0]?.col).toBe(5);
+    expect(shots[0]?.step).toBe(9);
+  });
 });

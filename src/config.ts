@@ -113,7 +113,7 @@ export const MIX = {
 
 export const PALETTE = {
   bg: '#12101a',
-  path: '#241f33',
+  path: '#5a4d85',
   grid: '#1c1829',
   kick: '#ff3d81',
   hat: '#2de2e6',
