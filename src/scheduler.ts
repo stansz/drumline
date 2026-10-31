@@ -5,12 +5,15 @@ export class Scheduler {
   lastStepTime: number;
   stepDuration: number;
 
-  private readonly ctx: AudioContext;
+  private readonly ctx: Pick<AudioContext, 'currentTime'>;
   private readonly onStep: (time: number, stepDuration: number) => void;
   private timer: ReturnType<typeof setInterval> | null = null;
   private nextStepTime = 0;
 
-  constructor(ctx: AudioContext, onStep: (time: number, stepDuration: number) => void) {
+  constructor(
+    ctx: Pick<AudioContext, 'currentTime'>,
+    onStep: (time: number, stepDuration: number) => void,
+  ) {
     this.ctx = ctx;
     this.onStep = onStep;
     this.bpm = BPM;
@@ -33,6 +36,9 @@ export class Scheduler {
   }
 
   private tick(): void {
+    if (this.nextStepTime < this.ctx.currentTime - 0.2) {
+      this.nextStepTime = this.ctx.currentTime + 0.06;
+    }
     while (this.nextStepTime < this.ctx.currentTime + 0.06) {
       this.stepDuration = stepSeconds(this.bpm);
       this.lastStepTime = this.nextStepTime;

@@ -10,6 +10,7 @@ export interface RenderState {
   now: number;
   lastStepTime: number;
   stepDuration: number;
+  playhead: number;
   selected: TowerType | 'sell' | null;
   hover: { col: number; row: number } | null;
 }
@@ -62,8 +63,8 @@ export class Renderer {
       const angle = Math.random() * Math.PI * 2;
       const speed = 40 + Math.random() * 170;
       this.particles.push({
-        x: event.x * CELL,
-        y: event.y * CELL,
+        x: (event.x + 0.5) * CELL,
+        y: (event.y + 0.5) * CELL,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed - 60,
         born: this.lastNow,
@@ -92,18 +93,18 @@ export class Renderer {
     }
   }
 
-  private drawPlayhead(sim: Sim): void {
+  private drawPlayhead(playhead: number): void {
     const ctx = this.ctx;
     ctx.save();
     ctx.fillStyle = PALETTE.playhead;
     ctx.globalAlpha = 0.07;
-    ctx.fillRect(sim.stepIndex * CELL, 0, CELL, HEIGHT);
+    ctx.fillRect(playhead * CELL, 0, CELL, HEIGHT);
     ctx.globalAlpha = 0.16;
     ctx.strokeStyle = PALETTE.playhead;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(sim.stepIndex * CELL + 0.5, 0);
-    ctx.lineTo(sim.stepIndex * CELL + 0.5, HEIGHT);
+    ctx.moveTo(playhead * CELL + 0.5, 0);
+    ctx.lineTo(playhead * CELL + 0.5, HEIGHT);
     ctx.stroke();
     ctx.restore();
   }
@@ -169,8 +170,8 @@ export class Renderer {
         Math.min(enemy.progress + speed * elapsedSteps, maxProgress),
       );
       const point = pathPoint(rendered);
-      const x = point.x * CELL;
-      const y = point.y * CELL;
+      const x = (point.x + 0.5) * CELL;
+      const y = (point.y + 0.5) * CELL;
       ctx.save();
       ctx.fillStyle = PALETTE.enemy;
       ctx.shadowColor = PALETTE.enemy;
@@ -218,7 +219,7 @@ export class Renderer {
 
     this.drawGrid();
     this.drawPath();
-    this.drawPlayhead(state.sim);
+    this.drawPlayhead(state.playhead);
     this.drawTowers(state.sim, state.now);
     this.drawEnemies(state);
     this.drawParticles(state.now);

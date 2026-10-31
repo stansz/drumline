@@ -1,5 +1,16 @@
 import { Audio_ } from './audio';
-import { BPM, FAST_BPM, GRID_COLS, GRID_ROWS, WAVES, stepSeconds } from './config';
+import {
+  ARP_STEPS,
+  BASS_STEPS,
+  BPM,
+  FAST_BPM,
+  GRID_COLS,
+  GRID_ROWS,
+  STEPS_PER_BAR,
+  WAVES,
+  stepSeconds,
+} from './config';
+import { arpNote, chordForStep, intensity, layerLevels } from './music';
 import { Renderer } from './render';
 import { Scheduler } from './scheduler';
 import { Sim, type SimEvent, type TowerType } from './sim';
@@ -7,7 +18,7 @@ import './style.css';
 
 declare global {
   interface Window {
-    __drumline: { sim: Sim; scheduler: Scheduler | null };
+    __drumline: { sim: Sim; scheduler: Scheduler | null; audio: Audio_ | null };
   }
 }
 
@@ -44,8 +55,11 @@ let muted = false;
 let selected: TowerType | 'sell' | null = null;
 let hover: { col: number; row: number } | null = null;
 let queued: Array<{ at: number; event: SimEvent }> = [];
+let musicStep = 0;
+let stepMarks: Array<{ at: number; step: number }> = [];
+let playhead = 0;
 
-window.__drumline = { sim, scheduler };
+window.__drumline = { sim, scheduler, audio };
 
 function updateHud(): void {
   moneyEl.textContent = `$${sim.money}`;
@@ -82,12 +96,26 @@ function showEndOverlay(message: string): void {
   overlay.classList.add('passive');
 }
 
-function onStep(time: number, _duration: number): void {
+function onStep(time: number, duration: number): void {
   if (!audio) return;
   const step = sim.stepIndex;
-  if (step % 4 === 0) {
+  const i = intensity(sim.towers.length, sim.wave);
+  const levels = layerLevels(i);
+  const local = musicStep % STEPS_PER_BAR;
+  if (local === 0) {
+    audio.playPad(chordForStep(musicStep).pad, time, duration * STEPS_PER_BAR, levels.pad);
+  }
+  if (levels.bass > 0 && BASS_STEPS.includes(local)) {
+    audio.playBass(chordForStep(musicStep).bass, time, levels.bass);
+  }
+  if (levels.arp > 0 && ARP_STEPS.includes(local)) {
+    audio.playArp(arpNote(musicStep), time, levels.arp);
+  }
+  if (sim.towers.length === 0 && step % 4 === 0) {
     audio.playMetronome(time, step === 0);
   }
+  audio.setTempo(duration);
+  stepMarks.push({ at: time, step });
   const events = sim.step();
   for (const event of events) {
     if (event.kind === 'note') {
@@ -99,6 +127,7 @@ function onStep(time: number, _duration: number): void {
     }
     queued.push({ at: time, event });
   }
+  musicStep += 1;
   updateHud();
 }
 
@@ -114,7 +143,7 @@ async function startGame(): Promise<void> {
     scheduler = new Scheduler(ctx, onStep);
     scheduler.bpm = fast ? FAST_BPM : BPM;
     scheduler.start();
-    window.__drumline = { sim, scheduler };
+    window.__drumline = { sim, scheduler, audio };
     hideOverlay();
   } catch (error) {
     started = false;
@@ -138,6 +167,7 @@ function toggleMute(): void {
 function restart(): void {
   sim = new Sim();
   queued = [];
+  stepMarks = [];
   hover = null;
   selected = null;
   fast = false;
@@ -153,7 +183,7 @@ function restart(): void {
   } else {
     showStartOverlay();
   }
-  window.__drumline = { sim, scheduler };
+  window.__drumline = { sim, scheduler, audio };
 }
 
 function cellAt(event: PointerEvent | MouseEvent): { col: number; row: number } | null {
@@ -240,6 +270,12 @@ window.addEventListener('keydown', (event) => {
 
 function frame(): void {
   const now = audioContext ? audioContext.currentTime : 0;
+  while (stepMarks.length > 0) {
+    const mark = stepMarks[0];
+    if (!mark || mark.at > now) break;
+    stepMarks.shift();
+    playhead = mark.step;
+  }
   while (queued.length > 0) {
     const item = queued[0];
     if (!item || item.at > now) break;
@@ -256,6 +292,7 @@ function frame(): void {
     now,
     lastStepTime: scheduler ? scheduler.lastStepTime : 0,
     stepDuration: scheduler ? scheduler.stepDuration : stepSeconds(BPM),
+    playhead,
     selected,
     hover,
   });
