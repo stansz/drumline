@@ -6,10 +6,10 @@ import { bossBound, bossWaves } from '../tools/playtest/bound';
 const expected = [
   ['hard', 10, 1862, 814, 6321],
   ['hard', 20, 8350, 1879, 12056],
-  ['hard', 30, 29997, 3256, 16679],
+  ['hard', 30, 14000, 3256, 16679],
   ['easy', 10, 1303, 1044, 7691],
   ['easy', 20, 5845, 2309, 13636],
-  ['easy', 30, 20998, 3886, 18247],
+  ['easy', 30, 9800, 3886, 18247],
 ] as const;
 
 describe('boss bound', () => {
@@ -52,18 +52,17 @@ describe('boss bound', () => {
     expect(bound.boardDamage).toBeGreaterThanOrEqual(bound.bossHp);
   });
 
-  // Known balance bug: these bosses can't be killed. Remove `.fails` when boss health is fixed.
-  it.fails('a full-income board can kill the wave 30 boss on hard', () => {
+  it('a full-income board can kill the wave 30 boss on hard', () => {
     const bound = bossBound(30, DIFFICULTIES.hard, DEFAULT_RULES);
     expect(bound.boardDamage).toBeGreaterThanOrEqual(bound.bossHp);
   });
 
-  it.fails('a full-income board can kill the wave 30 boss on easy', () => {
+  it('a full-income board can kill the wave 30 boss on easy', () => {
     const bound = bossBound(30, DIFFICULTIES.easy, DEFAULT_RULES);
     expect(bound.boardDamage).toBeGreaterThanOrEqual(bound.bossHp);
   });
 
-  it.fails('a full board of synths beats hard', () => {
+  it('a full board of synths beats hard', () => {
     const sim = new Sim({ ...DIFFICULTIES.hard, startMoney: 1e7 });
     for (let col = 0; col < GRID_COLS; col += 1) {
       for (let row = 0; row < GRID_ROWS; row += 1) {

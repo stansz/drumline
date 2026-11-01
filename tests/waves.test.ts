@@ -51,39 +51,33 @@ describe('waves', () => {
 });
 
 describe('boss health cap', () => {
-  const cappedHard = {
+  const uncappedHard = {
     ...DIFFICULTIES.hard,
-    curve: { ...WAVE_CURVE, bossHealthCap: 14000 },
-  };
-  const cappedEasy = {
-    ...DIFFICULTIES.easy,
-    curve: { ...WAVE_CURVE, bossHealthCap: 14000 },
+    curve: { ...WAVE_CURVE, bossHealthCap: 1000000 },
   };
 
   function bossHp(wave: number, difficulty: typeof DIFFICULTIES.hard): number | undefined {
     return buildWave(wave, difficulty).find((group) => group.type === 'boss')?.hp;
   }
 
-  it('leaves the default final boss unchanged', () => {
-    expect(bossHp(30, DIFFICULTIES.hard)).toBe(29997);
-  });
-
-  it('caps the final boss on hard and leaves its runners alone', () => {
-    expect(bossHp(30, cappedHard)).toBe(14000);
-    const cappedRunners = buildWave(30, cappedHard).filter((group) => group.type === 'runner');
-    const defaultRunners = buildWave(30, DIFFICULTIES.hard).filter(
-      (group) => group.type === 'runner',
-    );
-    expect(cappedRunners).toEqual(defaultRunners);
+  it('caps the final boss on hard', () => {
+    expect(bossHp(30, DIFFICULTIES.hard)).toBe(14000);
+    expect(bossHp(30, uncappedHard)).toBe(29997);
   });
 
   it('scales the cap by healthScale on easy', () => {
-    expect(bossHp(30, cappedEasy)).toBe(9800);
+    expect(bossHp(30, DIFFICULTIES.easy)).toBe(9800);
+  });
+
+  it('leaves the final wave runners alone', () => {
+    const capped = buildWave(30, DIFFICULTIES.hard).filter((group) => group.type === 'runner');
+    const uncapped = buildWave(30, uncappedHard).filter((group) => group.type === 'runner');
+    expect(capped).toEqual(uncapped);
   });
 
   it('leaves earlier bosses below the cap unchanged', () => {
-    expect(bossHp(10, cappedHard)).toBe(bossHp(10, DIFFICULTIES.hard));
-    expect(bossHp(20, cappedHard)).toBe(bossHp(20, DIFFICULTIES.hard));
+    expect(bossHp(10, DIFFICULTIES.hard)).toBe(bossHp(10, uncappedHard));
+    expect(bossHp(20, DIFFICULTIES.hard)).toBe(bossHp(20, uncappedHard));
   });
 });
 

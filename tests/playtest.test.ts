@@ -34,7 +34,7 @@ describe('playGame', () => {
   it('a mixed bot wins on easy', () => {
     const result = playGame(policyBot(base(1, 1, 1), rules), DIFFICULTIES.easy, rules, 1);
     expect(result.result).toBe('won');
-    expect(result.lives).toBe(10);
+    expect(result.lives).toBe(30);
     expect(result.towers).toBe(75);
     expect(result.mix).toEqual({ kick: 25, hat: 25, synth: 25 });
   });

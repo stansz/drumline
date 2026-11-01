@@ -2,7 +2,7 @@
 
 How Drumline's difficulty works, why it is set up this way, and how to change it.
 
-Last tuned 2026-10-31. Every result below comes from the bots in `tests/bots.ts`. No human
+Last tuned 2026-11-01. Every result below comes from the bots in `tests/bots.ts`. No human
 playtest has confirmed these numbers yet.
 
 ## Quick reference
@@ -50,7 +50,8 @@ Boss waves multiply this by `bossBudget`. The steps are:
 2. **Size:** start at `baseEnemies`, add `enemiesPerWave` each wave, and stop at `maxEnemies`.
 3. **Mix:** choose the enemy types from the pattern below.
 4. **Health:** scale all enemies equally to fill the budget. The `hp` values in `ENEMIES` set
-   how tough each type is relative to the others, not its final health.
+   how tough each type is relative to the others, not its final health. Bosses stop at
+   `bossHealthCap`.
 5. **Spacing:** enemies start 8 steps apart, and that shrinks by 1 step every 5 waves, down to a
    minimum of 2.
 
@@ -71,7 +72,7 @@ more, and enemy numbers are what grow income.
 | `waves` | 30 | Run length |
 | `bossEvery` | 10 | Bosses at waves 10, 20, and 30 |
 | `bossBudget` | 1 | Boss waves use a normal budget |
-| `bossHealthCap` | 1,000,000 | Highest boss health on Hard, scaled by `healthScale`. No effect yet |
+| `bossHealthCap` | 14,000 | Highest boss health on Hard, scaled by `healthScale`, so the final boss can be killed |
 | `baseHealth` | 240 | Wave 1 budget |
 | `ramp` | 0.3 | Steady early growth |
 | `growth` | 1.10 | 10% compounding growth per wave |
@@ -91,9 +92,10 @@ more, and enemy numbers are what grow income.
 | 20 | 9,834 | Boss, 8,350 HP; 10 runners, 148 HP |
 | 25 | 19,384 | 22 blips, 881 HP |
 | 29 | 32,534 | 15 blips, 1,600 HP; 10 runners, 853 HP |
-| 30 | 36,929 | Boss, 29,997 HP; 13 runners, 533 HP |
+| 30 | 36,929 | Boss, 14,000 HP; 13 runners, 533 HP |
 
-Easy uses the same waves with 70% of this health.
+Easy uses the same waves with 70% of this health. The final boss is capped, so wave 30 has less
+total health than its budget.
 
 ## Targets
 
@@ -116,9 +118,9 @@ too far or the target needs to move.
 | Hard | Casual | Lost at wave 10 | 10 | 7.0 min |
 | Hard | Spread | Lost at wave 28 | 58 | 16.6 min |
 | Hard | Stack | Lost at wave 29 | 61 | 15.9 min |
-| Easy | Casual | Lost at wave 21 | 21 | 13.5 min |
-| Easy | Spread | Won with 10 lives | 78 | 13.2 min |
-| Easy | Stack | Won with 10 lives | 63 | 13.0 min |
+| Easy | Casual | Lost at wave 21 | 21 | 13.4 min |
+| Easy | Spread | Won with 30 lives | 78 | 12.8 min |
+| Easy | Stack | Won with 30 lives | 63 | 12.7 min |
 
 Times count wave play only, not time spent building. Runs take half as long at 240 BPM. With
 **Auto** on, waiting out every countdown adds about 3.9 minutes at 120 BPM.
@@ -147,6 +149,10 @@ time. A player who needs longer can turn **Auto** off.
   1.12 stops them at wave 20.
 - **`enemiesPerWave` is really an income setting.** At 0.8 with higher bonuses, bots filled 78 of
   85 cells on Hard, well past the two-thirds target.
+- **The final boss needs a cap.** Boss health follows the wave budget, but board damage is limited
+  by the 85 buildable cells. A `bossHealthCap` sweep on 2026-11-01 chose 14,000: the best random bot
+  deals 87% of that, and it is 84% of the 16,679 damage a board bought with all possible income can
+  deal.
 
 ## How to retune
 
@@ -188,17 +194,14 @@ Bloons figure, but on top of it, `ramp` adds extra growth in the early waves.
 
 ## Open questions
 
-- **Final bosses can't be killed:** on Hard, the wave 30 boss has 29,997 HP, while a board bought
-  with all the money the game pays out deals at most 16,679 damage to it. Even 85 synths with
-  unlimited money deal about 20,000 and lose. Easy's boss has 20,998 HP against an 18,247 limit, so
-  Easy wins depend on it leaking. Boss health grows with the wave budget, but board damage is
-  capped by the 85 buildable cells. `tests/boss-bound.test.ts` records this with `it.fails`.
 - **Human testing:** the bots are a stand-in. Hard is meant to be beatable by a thoughtful player,
   and that has not been proven.
+- **Hard is unproven:** the final boss can now be killed, but no bot has won Hard. The strategy
+  search still has to show that strong play can.
+- **Easy's strong bots lose no lives:** both win with all 30 lives now that they kill the final boss.
+  Easy may be too easy for a player who builds well.
 - **Late collapse on Hard:** runs hold steady and then fall apart quickly. If that feels abrupt,
   lower `growth` and raise `ramp`.
-- **Bosses leak on Easy:** both strong Easy bots won while the final boss got through, dropping
-  from 30 lives to 10. A win where the boss escapes may feel flat.
 - **Stacking:** the stack bot survives one wave longer than the spread bot on Hard, so the gap
   remains small. The chord bonus was left unchanged.
 - **Music build-up:** `intensity` in `src/music.ts` still peaks by wave 5, so the soundtrack stops
