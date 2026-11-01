@@ -1,12 +1,12 @@
-import { readFileSync } from 'node:fs';
+/// <reference types="vite/client" />
 import { describe, expect, it } from 'vitest';
+import docs from '../docs/balance.md?raw';
 import { DEFAULT_RULES, DIFFICULTIES, type DifficultyId } from '../src/config';
 import { configHash } from '../tools/playtest/rules';
 
 const NAMES: Record<DifficultyId, string> = { easy: 'Easy', hard: 'Hard' };
 
 function documentedHash(id: DifficultyId): string | undefined {
-  const docs = readFileSync('docs/balance.md', 'utf8');
   return docs.match(new RegExp(`^\\| ${NAMES[id]} \\| \`([0-9a-f]{8})\` \\|$`, 'm'))?.[1];
 }
 
