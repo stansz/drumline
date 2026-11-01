@@ -110,7 +110,7 @@ too far or the target needs to move.
 
 ## Current results
 
-| Mode | Bot | Result | Towers | Time at 1× |
+| Mode | Bot | Result | Towers | Time at 120 BPM |
 | --- | --- | --- | --- | --- |
 | Hard | Casual | Lost at wave 10 | 10 | 7.0 min |
 | Hard | Spread | Lost at wave 28 | 58 | 16.6 min |
@@ -119,7 +119,7 @@ too far or the target needs to move.
 | Easy | Spread | Won with 10 lives | 78 | 13.2 min |
 | Easy | Stack | Won with 10 lives | 63 | 13.0 min |
 
-Times count wave play only, not time spent building. Runs take half as long at 2× speed.
+Times count wave play only, not time spent building. Runs take half as long at 240 BPM.
 
 The Hard spread bot holds at 15 lives and the Hard stack bot at 20 until the late waves, then both
 collapse quickly. Pressure on Hard therefore arrives late.

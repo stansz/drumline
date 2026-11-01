@@ -30,8 +30,9 @@ export function layerLevels(i: number): { pad: number; bass: number; arp: number
 export function arpNote(
   musicStep: number,
   chords: ReadonlyArray<(typeof MUSIC_CHORDS)[number]> = MUSIC_CHORDS,
+  rate = 2,
 ): number {
   const pad = chordForStep(musicStep, chords).pad;
-  const index = Math.floor(musicStep / 2) % pad.length;
+  const index = Math.floor(musicStep / rate) % pad.length;
   return (pad[index] ?? pad[0] ?? 0) + 12;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { softClipCurve } from '../src/audio';
+import { crushCurve, softClipCurve } from '../src/audio';
 
 describe('softClipCurve', () => {
   const curve = softClipCurve();
@@ -21,5 +21,20 @@ describe('softClipCurve', () => {
     for (let i = 1; i < curve.length; i += 1) {
       expect(curve[i] ?? 0).toBeGreaterThan(curve[i - 1] ?? 0);
     }
+  });
+});
+
+describe('crushCurve', () => {
+  it('quantizes every value to one of the crush steps', () => {
+    for (const value of crushCurve()) {
+      expect(value * 24).toBeCloseTo(Math.round(value * 24), 3);
+    }
+  });
+
+  it('stays within full scale and silent at the center', () => {
+    const curve = crushCurve();
+    expect(Math.max(...curve)).toBe(1);
+    expect(Math.min(...curve)).toBe(-1);
+    expect(Math.abs(curve[(curve.length - 1) / 2] ?? 1)).toBe(0);
   });
 });

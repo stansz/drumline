@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { STEPS_PER_BAR } from '../src/config';
+import { MUSIC_CHORDS, STEPS_PER_BAR } from '../src/config';
 import {
   arpNote,
   chordForStep,
@@ -63,5 +63,11 @@ describe('arpNote', () => {
       const allowed = chordForStep(step).pad.map((note) => note + 12);
       expect(allowed).toContain(arpNote(step));
     }
+  });
+
+  it('moves through the chord at the given rate', () => {
+    const pad = MUSIC_CHORDS[0]?.pad ?? [];
+    expect(arpNote(1, MUSIC_CHORDS, 1)).toBe((pad[1] ?? 0) + 12);
+    expect(arpNote(1, MUSIC_CHORDS, 2)).toBe((pad[0] ?? 0) + 12);
   });
 });

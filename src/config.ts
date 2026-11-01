@@ -6,7 +6,7 @@ export const STEPS_PER_BAR = 16;
 
 export const BPM = 120;
 export const stepSeconds = (bpm: number): number => 60 / bpm / 4;
-export const FAST_BPM = 240;
+export const SPEED_BPMS = [BPM, 180, 240];
 
 export const PATH_WAYPOINTS: ReadonlyArray<readonly [number, number]> = [
   [0, 1],

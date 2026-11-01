@@ -34,7 +34,7 @@ Press **Theme** to switch between the Neon, Chiptune, Lo-fi, Techno, and Funk so
 - **1** Kick, **2** Hat, **3** Synth, **4** Sell
 - Click a buildable cell to place the selected tower
 - **Space** start the next wave
-- **F** toggle 2× speed
+- **F** change speed: 120, 180, or 240 BPM
 - **M** mute or unmute
 - **T** change the music theme
 - **R** restart and choose a difficulty again

@@ -2,17 +2,15 @@
 // /tests/loudness.html. It renders each board through the real audio chain, faster than real time.
 import { Audio_ } from '../src/audio';
 import {
-  BPM,
-  FAST_BPM,
   GRID_COLS,
   GRID_ROWS,
   STEPS_PER_BAR,
   TOWERS,
   stepSeconds,
 } from '../src/config';
-import { arpNote, chordForStep, intensity, layerLevels } from '../src/music';
+import { intensity, layerLevels } from '../src/music';
 import { Sim, type TowerType } from '../src/sim';
-import { DEFAULT_THEME, DRUM_PARTS, THEMES, type Theme } from '../src/themes';
+import { DEFAULT_THEME, THEMES, type Theme } from '../src/themes';
 
 const SAMPLE_RATE = 48000;
 const BARS = 8;
@@ -77,6 +75,7 @@ const BOARDS: Record<string, Board> = {
 };
 
 const THEME_BOARDS = ['spread 12', 'kick line', 'full board'];
+const LOUDNESS_BPMS = [120, 240];
 
 function seedRandom(seed: number): () => void {
   const original = Math.random;
@@ -113,24 +112,7 @@ async function renderBoard(
   const levels = layerLevels(intensity(sim.towers.length, 5));
   for (let musicStep = 0; musicStep < STEPS_PER_BAR * BARS; musicStep += 1) {
     const time = musicStep * duration;
-    const local = musicStep % STEPS_PER_BAR;
-    if (local === 0) {
-      audio.playPad(
-        chordForStep(musicStep, theme.chords).pad,
-        time,
-        duration * STEPS_PER_BAR,
-        levels.pad,
-      );
-    }
-    if (levels.bass > 0 && theme.bassSteps.includes(local)) {
-      audio.playBass(chordForStep(musicStep, theme.chords).bass, time, levels.bass);
-    }
-    if (levels.arp > 0 && theme.arpSteps.includes(local)) {
-      audio.playArp(arpNote(musicStep, theme.chords), time, levels.arp);
-    }
-    for (const part of DRUM_PARTS) {
-      if (theme.drums[part].includes(local)) audio.playBackingDrum(part, time, levels.pad);
-    }
+    audio.playMusicStep(musicStep, time, duration, levels);
     for (const event of sim.step()) {
       if (event.kind === 'note') {
         audio.playNote(event.towerType, event.row, time, true, event.chordSize);
@@ -171,14 +153,14 @@ async function renderBoard(
 export async function runLoudness(): Promise<Result[]> {
   const results: Result[] = [];
   for (const [name, board] of Object.entries(BOARDS)) {
-    for (const bpm of [BPM, FAST_BPM]) {
+    for (const bpm of LOUDNESS_BPMS) {
       results.push(await renderBoard(name, board, bpm, DEFAULT_THEME));
     }
   }
   for (const theme of THEMES) {
     if (theme === DEFAULT_THEME) continue;
     for (const name of THEME_BOARDS) {
-      for (const bpm of [BPM, FAST_BPM]) {
+      for (const bpm of LOUDNESS_BPMS) {
         results.push(await renderBoard(name, BOARDS[name] ?? [], bpm, theme));
       }
     }

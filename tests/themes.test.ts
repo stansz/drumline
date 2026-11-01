@@ -1,20 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { ARP_STEPS, BASS_STEPS, MIX, MUSIC_CHORDS, STEPS_PER_BAR } from '../src/config';
-import {
-  BACKING_DRUMS,
-  DEFAULT_THEME,
-  DRUM_PARTS,
-  THEMES,
-  nextTheme,
-  themeById,
-} from '../src/themes';
+import { DEFAULT_THEME, DRUM_PARTS, THEMES, nextTheme, themeById } from '../src/themes';
 
 describe('themes', () => {
   it('keeps the default theme identical to the original music', () => {
     expect(DEFAULT_THEME.chords).toEqual(MUSIC_CHORDS);
-    expect(DEFAULT_THEME.bassSteps).toEqual(BASS_STEPS);
-    expect(DEFAULT_THEME.arpSteps).toEqual(ARP_STEPS);
-    expect(DEFAULT_THEME.levels).toEqual({ pad: 1, bass: 1, arp: 1 });
+    expect(DEFAULT_THEME.chord.style).toBe('hold');
+    expect(DEFAULT_THEME.bass.steps).toEqual(BASS_STEPS);
+    expect(DEFAULT_THEME.arp.steps).toEqual(ARP_STEPS);
+    expect(DEFAULT_THEME.space.reverbSend).toBe(MIX.reverbSend);
+    expect(DEFAULT_THEME.space.delaySend).toBe(MIX.delaySend);
+    expect(DEFAULT_THEME.space.delayFeedback).toBe(MIX.delayFeedback);
+    expect(DEFAULT_THEME.space.crush).toBe(0);
+    expect(DEFAULT_THEME.swing).toBe(0);
+    expect(DEFAULT_THEME.crackle).toBe(0);
     for (const part of DRUM_PARTS) {
       expect(DEFAULT_THEME.drums[part]).toHaveLength(0);
     }
@@ -34,8 +33,11 @@ describe('themes', () => {
   it('places every pattern inside one bar', () => {
     for (const theme of THEMES) {
       const steps = [
-        ...theme.bassSteps,
-        ...theme.arpSteps,
+        ...theme.chord.steps,
+        ...theme.bass.steps,
+        ...theme.bass.octaveSteps,
+        ...theme.bass.ghostSteps,
+        ...theme.arp.steps,
         ...theme.drums.kick,
         ...theme.drums.snare,
         ...theme.drums.hat,
@@ -57,9 +59,26 @@ describe('themes', () => {
   });
 
   it('keeps backing drums quieter than the matching towers', () => {
-    expect(BACKING_DRUMS.kick).toBeLessThan(MIX.kick / 2);
-    expect(BACKING_DRUMS.hat).toBeLessThan(MIX.hat / 2);
-    expect(BACKING_DRUMS.snare).toBeLessThan(MIX.synth);
+    for (const theme of THEMES) {
+      expect(theme.drumLevels.kick).toBeLessThan(MIX.kick * 0.6);
+      expect(theme.drumLevels.hat).toBeLessThan(MIX.hat * 0.6);
+      expect(theme.drumLevels.snare).toBeLessThan(MIX.synth);
+    }
+  });
+
+  it('gives every theme its own sound recipes', () => {
+    for (const part of ['space', 'chord', 'bass', 'arp', 'kick', 'hat', 'synth'] as const) {
+      const recipes = THEMES.map((theme) => JSON.stringify(theme[part]));
+      expect(new Set(recipes).size).toBe(THEMES.length);
+    }
+  });
+
+  it('swings only Lo-fi and Funk', () => {
+    const swung = THEMES.filter((theme) => theme.swing > 0).map((theme) => theme.id);
+    expect(swung).toEqual(['lofi', 'funk']);
+    for (const theme of THEMES) {
+      expect(theme.swing).toBeLessThanOrEqual(0.3);
+    }
   });
 
   it('cycles through every theme and wraps to the first', () => {

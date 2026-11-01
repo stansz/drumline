@@ -3,22 +3,21 @@ import {
   BPM,
   CHORD_BONUS_PER_TOWER,
   DIFFICULTIES,
-  FAST_BPM,
+  SPEED_BPMS,
   GRID_COLS,
   GRID_ROWS,
   SELL_REFUND,
-  STEPS_PER_BAR,
   TOWERS,
   TOWER_INFO,
   stepSeconds,
   type Difficulty,
   type DifficultyId,
 } from './config';
-import { arpNote, chordForStep, intensity, layerLevels } from './music';
+import { intensity, layerLevels } from './music';
 import { Renderer } from './render';
 import { Scheduler } from './scheduler';
 import { Sim, type SimEvent, type TowerType } from './sim';
-import { DEFAULT_THEME, DRUM_PARTS, nextTheme, themeById, type Theme } from './themes';
+import { DEFAULT_THEME, nextTheme, themeById, type Theme } from './themes';
 import './style.css';
 
 declare global {
@@ -45,7 +44,7 @@ const hatButton = byId<HTMLButtonElement>('tool-hat');
 const synthButton = byId<HTMLButtonElement>('tool-synth');
 const sellButton = byId<HTMLButtonElement>('tool-sell');
 const startWaveButton = byId<HTMLButtonElement>('start-wave');
-const fastButton = byId<HTMLButtonElement>('fast');
+const speedButton = byId<HTMLButtonElement>('speed');
 const muteButton = byId<HTMLButtonElement>('mute');
 const restartButton = byId<HTMLButtonElement>('restart');
 const easyButton = byId<HTMLButtonElement>('mode-easy');
@@ -60,7 +59,7 @@ let scheduler: Scheduler | null = null;
 let audio: Audio_ | null = null;
 let audioContext: AudioContext | null = null;
 let started = false;
-let fast = false;
+let speedIndex = 0;
 let muted = false;
 let selected: TowerType | 'sell' | null = null;
 let hover: { col: number; row: number } | null = null;
@@ -140,24 +139,7 @@ function onStep(time: number, duration: number): void {
   const step = sim.stepIndex;
   const i = intensity(sim.towers.length, sim.wave);
   const levels = layerLevels(i);
-  const local = musicStep % STEPS_PER_BAR;
-  if (local === 0) {
-    audio.playPad(
-      chordForStep(musicStep, theme.chords).pad,
-      time,
-      duration * STEPS_PER_BAR,
-      levels.pad,
-    );
-  }
-  if (levels.bass > 0 && theme.bassSteps.includes(local)) {
-    audio.playBass(chordForStep(musicStep, theme.chords).bass, time, levels.bass);
-  }
-  if (levels.arp > 0 && theme.arpSteps.includes(local)) {
-    audio.playArp(arpNote(musicStep, theme.chords), time, levels.arp);
-  }
-  for (const part of DRUM_PARTS) {
-    if (theme.drums[part].includes(local)) audio.playBackingDrum(part, time, levels.pad);
-  }
+  audio.playMusicStep(musicStep, time, duration, levels);
   if (sim.towers.length === 0 && step % 4 === 0) {
     audio.playMetronome(time, step === 0);
   }
@@ -189,7 +171,7 @@ async function startGame(): Promise<void> {
     audio.setTheme(theme);
     audio.setMuted(muted);
     scheduler = new Scheduler(ctx, onStep);
-    scheduler.bpm = fast ? FAST_BPM : BPM;
+    scheduler.bpm = currentBpm();
     scheduler.start();
     window.__drumline = { sim, scheduler, audio };
     hideOverlay();
@@ -200,10 +182,19 @@ async function startGame(): Promise<void> {
   }
 }
 
-function toggleFast(): void {
-  fast = !fast;
-  if (scheduler) scheduler.bpm = fast ? FAST_BPM : BPM;
-  fastButton.classList.toggle('selected', fast);
+function currentBpm(): number {
+  return SPEED_BPMS[speedIndex] ?? BPM;
+}
+
+function updateSpeedButton(): void {
+  speedButton.textContent = `${currentBpm()} BPM`;
+  speedButton.classList.toggle('selected', speedIndex > 0);
+}
+
+function cycleSpeed(): void {
+  speedIndex = (speedIndex + 1) % SPEED_BPMS.length;
+  if (scheduler) scheduler.bpm = currentBpm();
+  updateSpeedButton();
 }
 
 function toggleMute(): void {
@@ -242,12 +233,12 @@ function resetRun(difficulty: Difficulty): void {
   hover = null;
   inspect = null;
   selected = null;
-  fast = false;
+  speedIndex = 0;
   muted = false;
   if (scheduler) scheduler.bpm = BPM;
   audio?.setMuted(false);
   updateSelection();
-  fastButton.classList.remove('selected');
+  updateSpeedButton();
   muteButton.classList.remove('selected');
   updateHud();
   updateInfo();
@@ -320,7 +311,7 @@ startWaveButton.addEventListener('click', () => {
   updateHud();
 });
 
-fastButton.addEventListener('click', toggleFast);
+speedButton.addEventListener('click', cycleSpeed);
 muteButton.addEventListener('click', toggleMute);
 restartButton.addEventListener('click', restart);
 themeButton.addEventListener('click', cycleTheme);
@@ -358,7 +349,7 @@ window.addEventListener('keydown', (event) => {
       selectTool('sell');
       break;
     case 'f':
-      toggleFast();
+      cycleSpeed();
       break;
     case 'm':
       toggleMute();
@@ -420,4 +411,5 @@ updateHud();
 updateSelection();
 updateInfo();
 updateThemeButton();
+updateSpeedButton();
 requestAnimationFrame(frame);
