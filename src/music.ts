@@ -4,9 +4,12 @@ export function midiToHz(midi: number): number {
   return 440 * 2 ** ((midi - 69) / 12);
 }
 
-export function chordForStep(musicStep: number): (typeof MUSIC_CHORDS)[number] {
+export function chordForStep(
+  musicStep: number,
+  chords: ReadonlyArray<(typeof MUSIC_CHORDS)[number]> = MUSIC_CHORDS,
+): (typeof MUSIC_CHORDS)[number] {
   const bar = Math.floor(musicStep / STEPS_PER_BAR);
-  return MUSIC_CHORDS[bar % MUSIC_CHORDS.length] ?? MUSIC_CHORDS[0]!;
+  return chords[bar % chords.length] ?? MUSIC_CHORDS[0]!;
 }
 
 export function intensity(towerCount: number, wave: number): number {
@@ -24,8 +27,11 @@ export function layerLevels(i: number): { pad: number; bass: number; arp: number
   };
 }
 
-export function arpNote(musicStep: number): number {
-  const pad = chordForStep(musicStep).pad;
+export function arpNote(
+  musicStep: number,
+  chords: ReadonlyArray<(typeof MUSIC_CHORDS)[number]> = MUSIC_CHORDS,
+): number {
+  const pad = chordForStep(musicStep, chords).pad;
   const index = Math.floor(musicStep / 2) % pad.length;
   return (pad[index] ?? pad[0] ?? 0) + 12;
 }

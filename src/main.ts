@@ -1,7 +1,5 @@
 import { Audio_ } from './audio';
 import {
-  ARP_STEPS,
-  BASS_STEPS,
   BPM,
   CHORD_BONUS_PER_TOWER,
   DIFFICULTIES,
@@ -20,6 +18,7 @@ import { arpNote, chordForStep, intensity, layerLevels } from './music';
 import { Renderer } from './render';
 import { Scheduler } from './scheduler';
 import { Sim, type SimEvent, type TowerType } from './sim';
+import { DEFAULT_THEME, DRUM_PARTS, nextTheme, themeById, type Theme } from './themes';
 import './style.css';
 
 declare global {
@@ -51,7 +50,9 @@ const muteButton = byId<HTMLButtonElement>('mute');
 const restartButton = byId<HTMLButtonElement>('restart');
 const easyButton = byId<HTMLButtonElement>('mode-easy');
 const hardButton = byId<HTMLButtonElement>('mode-hard');
+const themeButton = byId<HTMLButtonElement>('theme');
 
+const THEME_KEY = 'drumline-theme';
 const renderer = new Renderer(canvas);
 
 let sim = new Sim();
@@ -68,6 +69,7 @@ let queued: Array<{ at: number; event: SimEvent }> = [];
 let musicStep = 0;
 let stepMarks: Array<{ at: number; step: number }> = [];
 let playhead = 0;
+let theme = loadTheme();
 
 window.__drumline = { sim, scheduler, audio };
 
@@ -140,13 +142,21 @@ function onStep(time: number, duration: number): void {
   const levels = layerLevels(i);
   const local = musicStep % STEPS_PER_BAR;
   if (local === 0) {
-    audio.playPad(chordForStep(musicStep).pad, time, duration * STEPS_PER_BAR, levels.pad);
+    audio.playPad(
+      chordForStep(musicStep, theme.chords).pad,
+      time,
+      duration * STEPS_PER_BAR,
+      levels.pad,
+    );
   }
-  if (levels.bass > 0 && BASS_STEPS.includes(local)) {
-    audio.playBass(chordForStep(musicStep).bass, time, levels.bass);
+  if (levels.bass > 0 && theme.bassSteps.includes(local)) {
+    audio.playBass(chordForStep(musicStep, theme.chords).bass, time, levels.bass);
   }
-  if (levels.arp > 0 && ARP_STEPS.includes(local)) {
-    audio.playArp(arpNote(musicStep), time, levels.arp);
+  if (levels.arp > 0 && theme.arpSteps.includes(local)) {
+    audio.playArp(arpNote(musicStep, theme.chords), time, levels.arp);
+  }
+  for (const part of DRUM_PARTS) {
+    if (theme.drums[part].includes(local)) audio.playBackingDrum(part, time, levels.pad);
   }
   if (sim.towers.length === 0 && step % 4 === 0) {
     audio.playMetronome(time, step === 0);
@@ -176,6 +186,7 @@ async function startGame(): Promise<void> {
     audioContext = ctx;
     await ctx.resume();
     audio = new Audio_(ctx);
+    audio.setTheme(theme);
     audio.setMuted(muted);
     scheduler = new Scheduler(ctx, onStep);
     scheduler.bpm = fast ? FAST_BPM : BPM;
@@ -199,6 +210,29 @@ function toggleMute(): void {
   muted = !muted;
   audio?.setMuted(muted);
   muteButton.classList.toggle('selected', muted);
+}
+
+function loadTheme(): Theme {
+  try {
+    return themeById(localStorage.getItem(THEME_KEY));
+  } catch {
+    return DEFAULT_THEME;
+  }
+}
+
+function updateThemeButton(): void {
+  themeButton.textContent = `♪ ${theme.name}`;
+}
+
+function cycleTheme(): void {
+  theme = nextTheme(theme);
+  audio?.setTheme(theme);
+  updateThemeButton();
+  try {
+    localStorage.setItem(THEME_KEY, theme.id);
+  } catch {
+    // The choice just lasts for this visit when storage is unavailable.
+  }
 }
 
 function resetRun(difficulty: Difficulty): void {
@@ -289,6 +323,7 @@ startWaveButton.addEventListener('click', () => {
 fastButton.addEventListener('click', toggleFast);
 muteButton.addEventListener('click', toggleMute);
 restartButton.addEventListener('click', restart);
+themeButton.addEventListener('click', cycleTheme);
 
 window.addEventListener('keydown', (event) => {
   if (event.repeat) return;
@@ -296,6 +331,7 @@ window.addEventListener('keydown', (event) => {
     const key = event.key.toLowerCase();
     if (key === 'e') chooseDifficulty('easy');
     if (key === 'h') chooseDifficulty('hard');
+    if (key === 't') cycleTheme();
     return;
   }
   if (event.code === 'Space') {
@@ -329,6 +365,9 @@ window.addEventListener('keydown', (event) => {
       break;
     case 'r':
       restart();
+      break;
+    case 't':
+      cycleTheme();
       break;
     default:
       break;
@@ -380,4 +419,5 @@ for (const [button, type] of costButtons) {
 updateHud();
 updateSelection();
 updateInfo();
+updateThemeButton();
 requestAnimationFrame(frame);

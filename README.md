@@ -26,6 +26,8 @@ one that gets through costs 20 lives. Select **Sell** and click a tower to refun
 [docs/balance.md](docs/balance.md) explains how the difficulty curve works and how
 to retune it.
 
+Press **Theme** to switch between the Neon, Chiptune, Lo-fi, Techno, and Funk soundtracks at any time. Themes change the music and tower sounds, never the tempo or the game.
+
 ## Controls
 
 - **E** Easy or **H** Hard on the difficulty screen
@@ -34,6 +36,7 @@ to retune it.
 - **Space** start the next wave
 - **F** toggle 2× speed
 - **M** mute or unmute
+- **T** change the music theme
 - **R** restart and choose a difficulty again
 
 The on-screen buttons provide the same actions.
