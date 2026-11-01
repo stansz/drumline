@@ -61,6 +61,10 @@ scales.
 The step strip above the board is DOM. `main.ts` lights the playhead's step, and outlines the steps
 that the hovered or inspected tower plays on.
 
+On phones held upright, the board's size is limited by the screen width, so it runs edge to edge.
+On phones held sideways, the controls sit in a column beside the board, which gives it most of the
+screen. `#rotate-hint` on the start screen points players to that layout.
+
 ## Audio load
 
 Each sound costs audio CPU, and phones run out long before desktops. On one desktop core, a 75-tower

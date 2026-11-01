@@ -1,74 +1,93 @@
-# Plan: lower Easy's enemy health to 50%
+# Plan: phone layout fixes and tests inside the sandbox
 
 ## Goal
 
-Set Easy's `healthScale` to 0.5, so a casual player can beat Easy about half the time. A person approved this value. Hard does not change.
+Fix two phone layout bugs, and add a way to run the test suite inside the `dsh --profile headless` sandbox on Windows.
+
+- In landscape, tower prices are cut off because each pad is too narrow.
+- In portrait on small phones, selecting a tower moves the board, because the info text grows and the page re-centers.
 
 ## Files to touch
 
+Create:
+
+- `vitest.sandbox.config.mjs`
+
 Modify:
 
-- `src/config.ts`
-- `tests/boss-bound.test.ts`
-- `tests/waves.test.ts`
-- `README.md`
-- `docs/balance.md`
+- `src/style.css`
+- `package.json`
+- `AGENTS.md`
+- `docs/references.md`
 
 ## Steps
 
-### 1. Set the value
+### 1. Fix the landscape pads
 
-In `src/config.ts`, in `DIFFICULTIES.easy`, change `healthScale: 0.7,` to `healthScale: 0.5,`. Do not change Hard's `healthScale`.
+In `src/style.css`, inside the `@media (max-height: 520px) and (orientation: landscape)` block, add these rules at the end of the block:
 
-### 2. Update the tests
+```css
+  .pad {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
 
-In `tests/boss-bound.test.ts`, replace the three Easy rows of `expected` with:
-
-```ts
-  ['easy', 10, 931, 1044, 7691],
-  ['easy', 20, 4175, 2309, 13636],
-  ['easy', 30, 6500, 3886, 18247],
+  .pad canvas {
+    width: 20px;
+    height: 20px;
+  }
 ```
 
-In `tests/waves.test.ts`, in the `scales the cap by healthScale on easy` test, change `.toBe(9100)` to `.toBe(6500)`.
+### 2. Stop the board moving in portrait
 
-### 3. Update `README.md`
+In `src/style.css`, inside the `@media (max-width: 760px) and (orientation: portrait)` block, add this rule at the end of the block:
 
-In the mode table, replace the Easy row with:
-
-```md
-| Easy | 30 | $150 | $40 | 50% |
+```css
+  #info {
+    min-height: 4.4em;
+  }
 ```
 
-### 4. Update `docs/balance.md`
+Do not change any other CSS rule.
 
-Make these changes and no others.
+### 3. Add the sandbox test config
 
-- In **Quick reference**, change `| Enemy health | 70% | 100% |` to `| Enemy health | 50% | 100% |`.
-- Change `Easy uses the same waves with 70% of this health.` to `Easy uses the same waves with 50% of this health.`
-- In **Current results**, replace the three Easy rows with:
+Create `vitest.sandbox.config.mjs` at the repository root:
 
-```md
-| Easy | Casual | Lost at wave 27 | 27 | 15.5 min |
-| Easy | Spread | Won with 30 lives | 78 | 10.1 min |
-| Easy | Stack | Won with 30 lives | 63 | 10.3 min |
+```js
+// Runs the tests inside the Windows dsh sandbox, which blocks piped child processes.
+// preserveSymlinks skips Vite's `net use` call, and threads replace forked workers.
+export default {
+  resolve: { preserveSymlinks: true },
+  test: { pool: 'threads' },
+};
 ```
 
-- In **Tuning findings**, add this bullet at the end of the list:
+In `package.json`, add this script directly after `"test"`:
 
-```md
-- **Only enemy health changes Easy for casual players.** Bots that buy one tower a wave can't spend
-  extra income, so raising `waveBonus` to 120 or `startMoney` to 300 changed nothing, and 50 starting
-  lives only moved them from wave 23 to wave 26. At 60% health they won 0% of games, at 50% they
-  won 54%, and at 45% they won 97%.
+```json
+"test:sandbox": "node node_modules/vitest/vitest.mjs run --config vitest.sandbox.config.mjs",
 ```
 
-- In **Open questions**, delete the whole `**Easy's strong bots lose no lives:**` item and the whole `**Easy has a skill cliff:**` item.
-- In **Open questions**, add this item directly after the `**Hard is a narrow win:**` item:
+### 4. Update the docs
+
+In `AGENTS.md`, add `npm run test:sandbox` to the commands sentence, directly after `npm test`.
+
+In `AGENTS.md`, replace the whole rule that starts `On Windows, Vite and Vitest fail with` with:
 
 ```md
-- **Easy offers little challenge to steady builders:** Casual bots win about half their games, while
-  Competent bots win every game without losing a life. A Normal mode could fill that gap.
+- On Windows, `npm test` and `npm run build` fail with `spawn EPERM` inside the
+  `dsh --profile headless` sandbox. Use `npm run test:sandbox` there, and still run `npm test`
+  outside the sandbox before committing. Don't widen the sandbox, set `NODE_OPTIONS`, or stub
+  modules.
+```
+
+In `docs/references.md`, in **Files**, add this directly after the `tests/fixtures/` entry:
+
+```md
+- `vitest.sandbox.config.mjs`: runs the tests inside the Windows `dsh` sandbox, through
+  `npm run test:sandbox`.
 ```
 
 ## Acceptance
@@ -76,17 +95,13 @@ Make these changes and no others.
 Run these from the repository root.
 
 - `npm run typecheck` exits 0.
-- `git grep -n "healthScale: 0.5," -- src/config.ts` prints 1 line.
-- `git grep -n "Easy has a skill cliff" -- docs/balance.md` prints nothing.
-- `git grep -n "with 70% of this health" -- docs/balance.md` prints nothing.
-- `git diff --quiet -- src/sim.ts src/waves.ts src/main.ts src/render.ts tests/balance.test.ts tests/bots.ts tests/playtest.test.ts tests/fixtures tools package.json package-lock.json` exits 0.
+- `npm run test:sandbox` exits 0 and reports 183 passed tests.
+- `git diff --quiet -- src/main.ts src/render.ts src/sim.ts src/config.ts src/waves.ts index.html tests tools package-lock.json` exits 0.
 
 Verifier only:
 
 - `npm test` exits 0.
 - `npm run build` exits 0.
-- `npm run playtest:tiers -- --plan playtest-out/search-easy/best-plan.json --games 200 --seed 1 --out playtest-out/tiers-easy-50` exits 0.
-- `npm run playtest:tiers -- --plan tests/fixtures/hard-expert-a.json --games 200 --seed 1 --out playtest-out/tiers-hard-final` exits 0.
 
 ## Parallel work
 
@@ -95,20 +110,18 @@ None — do it sequentially.
 ## Constraints
 
 - Do not commit, push, or switch branches.
+- Do not run `git add`, `git mv`, `git stash`, or `git reset`.
 - Do not touch files outside **Files to touch** except `.handoff/report.md`.
 - Do not run the `Verifier only:` commands.
 - If any command fails with `spawn EPERM`, stop and report it.
 - Do not request wider sandbox access, set `NODE_OPTIONS`, or stub modules to get past it.
 - Do not add dependencies, and do not change `package-lock.json`.
-- Do not change any game value other than Easy's `healthScale`.
-- Do not change `tests/balance.test.ts`.
 
 ## Out of scope
 
-- Any change to Hard, including `bossHealthCap`.
-- Adding a Normal mode.
-- Changes to `tools/playtest/`.
-- New searches or sweeps.
+- Any change to game rules or balance.
+- Any change to `npm test` or `vite.config.ts`.
+- Other layout changes.
 
 ## If blocked
 
