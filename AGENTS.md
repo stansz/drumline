@@ -36,6 +36,9 @@ Pushing to `main` deploys to GitHub Pages, and a failing test blocks the deploy.
 - Keep the `drumline-*` `localStorage` keys and `window.__drumline` names when the game's name
   changes, so saved settings survive.
 - Don't weaken `tests/balance.test.ts` to get a change through.
+- `docs/balance.md` is the only record of balance results. Don't quote a result from
+  `playtest-out/` unless its config hash matches that file. When a balance value changes, rerun the
+  tools and update the file in the same change, as it describes.
 - Vitest has no Web Audio or DOM, so unit test audio logic through exported pure functions. Check
   UI and audio changes in a browser.
 - On Windows, `npm test` and `npm run build` fail with `spawn EPERM` inside the

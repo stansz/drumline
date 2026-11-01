@@ -1,10 +1,24 @@
 # Balance notes
 
-How Drumline's difficulty works, why it is set up this way, and how to change it.
+How Drumline's difficulty works, what the current numbers are, and how to change them. This file is
+the only place that records balance results. Where it disagrees with old specs, branches, or
+anything in `playtest-out/`, this file and `src/config.ts` win.
 
-Last tuned 2026-11-01. Every result below comes from bots, either the scripted ones in
-`tests/bots.ts` or the playtest tools in `tools/playtest/`. No human playtest has confirmed these
-numbers yet.
+## Status
+
+Last measured 2026-11-01, on these configs:
+
+| Mode | Config hash |
+| --- | --- |
+| Hard | `90999138` |
+| Easy | `76412620` |
+
+Everything under [Current results](#current-results) was measured on these configs. No human
+playtest has confirmed any of it. Results come from bots, either the scripted ones in `tests/bots.ts`
+or the playtest tools in `tools/playtest/`.
+
+Every search report, tier run, and sweep record shows the config it ran on. If a hash there differs
+from this table, the result is out of date. See [Keeping this file current](#keeping-this-file-current).
 
 ## Quick reference
 
@@ -20,22 +34,6 @@ Enemy speed, tower stats, kill rewards, and the chord bonus are the same on both
 
 All tunable values live in `src/config.ts`, in `WAVE_CURVE` and `DIFFICULTIES`. The wave
 generator is `src/waves.ts`. `AUTO_WAVE_STEPS` sets the gap between automatic waves.
-
-## Why it changed
-
-The original game had 5 hand-written waves. Comparing total enemy health with the money earned
-so far showed why it felt too easy:
-
-| Wave | Total enemy health | Money earned so far | Health per dollar |
-| --- | --- | --- | --- |
-| 1 | 240 | $100 | 2.4 |
-| 2 | 396 | $180 | 2.2 |
-| 3 | 880 | $294 | 3.0 |
-| 4 | 1,380 | $464 | 3.0 |
-| 5 (boss) | 1,092 | $694 | 1.6 |
-
-Towers stay on the board, so damage builds up over a run, but enemy health barely outgrew
-income. The final boss wave was the easiest wave for the money available.
 
 ## How waves are built
 
@@ -113,10 +111,9 @@ total health than its budget.
 `tests/balance.test.ts` enforces these targets. If a change breaks one, either the change went
 too far or the target needs to move.
 
-If a change breaks an expert build, run a new search before deciding the build is out of date.
-`npm run playtest:search` finds a replacement, and its `best-plan.json` holds the plan to store.
-
 ## Current results
+
+### Scripted bots
 
 | Mode | Bot | Result | Towers | Time at 120 BPM |
 | --- | --- | --- | --- | --- |
@@ -132,8 +129,6 @@ Times count wave play only, not time spent building. Runs take half as long at 2
 
 The Hard spread bot holds at 15 lives and the Hard stack bot at 20 until the late waves, then both
 collapse quickly. Pressure on Hard therefore arrives late.
-
-### What the bots do
 
 - **Casual:** buys one tower before each wave, placed for good coverage.
 - **Spread:** spends everything, keeping columns as even as it can.
@@ -170,30 +165,41 @@ and falls at wave 10 on Hard, while the tier's random mixes usually reach wave 2
 Hard loses most games at two waves. Wave 29 stopped 79 of the 179 Expert games that passed wave 20,
 and wave 20 itself stopped 82 Competent games and 68 Strong games.
 
-## Tuning findings
+### Strategy search
 
-- **Bosses dominate.** A boss that gets through costs 20 lives, so it ends a Hard run outright. At
-  a `bossBudget` of 3, every bot died at wave 10 or 20 and normal waves stopped mattering. That is
-  why the boss budget is 1, even though boss waves in other games often use far more.
-- **`growth` is sensitive.** On Hard, 1.08 to 1.09 lets strong bots reach the final boss, while
-  1.12 stops them at wave 20.
-- **`enemiesPerWave` is really an income setting.** At 0.8 with higher bonuses, bots filled 78 of
-  85 cells on Hard, well past the two-thirds target.
-- **The final boss needs a cap.** Boss health follows the wave budget, but board damage is limited
-  by the 85 buildable cells. A `bossHealthCap` sweep on 2026-11-01 chose 14,000, but 258,000 search
-  games then failed to win at that value. At 13,000, the best search builds win Hard with 2 lives
-  left, while the best random bot deals 93% of the boss's health. That is 78% of the 16,679 damage
-  a board bought with all possible income can deal.
-- **Hats are mandatory on Hard.** With hats banned, the best build found stops at wave 20. Banning
-  kicks costs about one wave, and banning synths costs almost nothing. Hats keep chords at full
-  strength, so their value is higher than their damage share suggests.
+Each search below played 54,000 games with the settings in `tools/playtest/searches/`.
+
+| Search | Best result | Winning styles |
+| --- | --- | --- |
+| Hard | Reached wave 30 and lost | 0 of 46 |
+| Hard, no hats | Lost at wave 20 | 0 of 24 |
+| Hard, no kicks | Lost at wave 29 | 0 of 15 |
+| Hard, no synths | Reached wave 30 and lost | 0 of 15 |
+| Easy | Won with 30 lives | 44 of 48 |
+
+- **Hard's only known wins came from a higher boss cap.** The two builds in `tests/fixtures/` were
+  found by searches at a 14,000 cap, which lost, and they win when replayed at 13,000 with 2 lives
+  left. A new search at 13,000 found no win, so `npm run playtest:search` can't be relied on to
+  find a replacement.
+- **Hats are mandatory on Hard.** With hats banned, the best build stops at wave 20. Banning kicks
+  costs about one wave, and banning synths costs almost nothing. Hats keep chords at full strength,
+  so their value is higher than their damage share suggests.
 - **Spread builds beat focused ones.** On Hard, no build with 60% or more of its towers in one
-  `col % 4` group passed wave 20, and spending 60% or more on kicks also stopped there. Several
-  spread mixes reached wave 30, from 13/17/28 to 26/27/14 kicks, hats, and synths.
-- **Only enemy health changes Easy for casual players.** Bots that buy one tower a wave can't spend
-  extra income, so raising `waveBonus` to 120 or `startMoney` to 300 changed nothing, and 50 starting
-  lives only moved them from wave 23 to wave 26. At 60% health they won 0% of games, at 50% they
-  won 54%, and at 45% they won 97%.
+  `col % 4` group passed wave 20, and spending 60% or more on kicks also stopped there. Builds with
+  40–60% in one group reached wave 27.
+- **Several mixes reach wave 30 on Hard.** They run from 12/12/31 to 29/38/6 kicks, hats, and synths.
+- **Easy punishes almost nothing.** Nearly every style wins, including builds with no synths and
+  builds with no hats.
+
+### Final boss limits
+
+These come from the `boss-cap` sweep and `tools/playtest/bound.ts`.
+
+- The final boss's 13,000 HP is 78% of the 16,679 damage a board bought with all possible income can
+  deal.
+- The best random bot deals 93% of its health on Hard.
+- The sweep still proposes 14,000, because its random bots can't show that a value is too high. At
+  14,000, 258,000 search games failed to win, so the cap stays at 13,000.
 
 ## How to retune
 
@@ -208,6 +214,10 @@ and wave 20 itself stopped 82 Competent games and 68 Strong games.
 Change one setting at a time, then run `npm test` and read the balance results. Run
 `npx vitest run tests/balance.test.ts --reporter=verbose` to print each bot's result.
 
+If a change breaks an expert build, run a new search before deciding the build is out of date. Its
+`best-plan.json` holds the plan to store, but the standard search may not find a win, so don't weaken
+the test to get a change through. If you can't find a new winning build, treat Hard as too hard.
+
 ## Proposing a change
 
 `npm run playtest:sweep` tries a list of values for one setting and writes a proposal. It only
@@ -215,11 +225,83 @@ suggests a value, and a person decides whether to use it. To apply one, change `
 run `npm test`, and update the results in this file.
 
 Sweeps use random policies, not strong players, so use their proposals for coarse fixes only, and
-check them against the strategy search. A sweep proposed a `bossHealthCap` of 14,000, and the search
-then showed that value was too high.
+check them against the strategy search. Hard's sweep targets were also set after seeing bot damage,
+so they aren't independent proof.
 
 The strategy search and skill tiers show what strong play can do, and where each tier loses. Their
 targets aren't in `tools/playtest/targets.ts` yet.
+
+## Keeping this file current
+
+Any change to tower, enemy, chord, refund, wave, or difficulty values changes a config hash, which
+makes the results above out of date. In the same change:
+
+1. Run the five searches in `tools/playtest/searches/` (not `smoke.json`), the `boss-cap` sweep, and
+   `npm run playtest:tiers` for both modes.
+2. Update [Status](#status), [Current results](#current-results), and any value quoted elsewhere.
+3. Move any result that no longer applies to [History](#history), with its date and config.
+
+`playtest-out/` is scratch space and isn't tracked by git. Don't quote a result from it unless its
+config hash matches the [Status](#status) table.
+
+## Open questions
+
+- **Human testing:** the bots are a stand-in. Hard is meant to be beatable by a thoughtful player,
+  and that has not been proven.
+- **Hard is a narrow win:** the only known winning builds finish with 2 lives left, Expert wins 49%
+  of its games, and a new search didn't find a win. A person still has to show that Hard can be won.
+- **Tower balance:** hats are mandatory on Hard, and builds focused on chords never pass wave 20,
+  even though the scripted stack bot survives one wave longer than the spread bot. The tower stats
+  and chord bonus are unchanged. Settle this before adding tower upgrades.
+- **Easy offers little challenge to steady builders:** Casual bots win about half their games, while
+  Competent bots win every game without losing a life. A Normal mode could fill that gap.
+- **Late collapse on Hard:** runs hold steady and then fall apart quickly. If that feels abrupt,
+  lower `growth` and raise `ramp`.
+- **Music build-up:** `intensity` in `src/music.ts` still peaks by wave 5, so the soundtrack stops
+  building for the rest of a 30-wave run.
+- **Sending waves early:** this earns nothing extra, so it only saves time. A bonus would give
+  strong players a reason to take the risk, but it would also add income the targets don't allow
+  for.
+- **Normal mode:** the game has two modes for now. A third would mean adding one entry to
+  `DIFFICULTIES` and a button on the difficulty screen.
+
+## History
+
+These results explain past decisions. They come from older configs, so don't use them as current
+numbers.
+
+### The original 5 waves
+
+The original game had 5 hand-written waves. Comparing total enemy health with the money earned so far
+showed why it felt too easy:
+
+| Wave | Total enemy health | Money earned so far | Health per dollar |
+| --- | --- | --- | --- |
+| 1 | 240 | $100 | 2.4 |
+| 2 | 396 | $180 | 2.2 |
+| 3 | 880 | $294 | 3.0 |
+| 4 | 1,380 | $464 | 3.0 |
+| 5 (boss) | 1,092 | $694 | 1.6 |
+
+Towers stay on the board, so damage builds up over a run, but enemy health barely outgrew income. The
+final boss wave was the easiest wave for the money available.
+
+### Earlier tuning
+
+- **Bosses dominate.** A boss that gets through costs 20 lives, so it ends a Hard run outright. At
+  a `bossBudget` of 3, every bot died at wave 10 or 20 and normal waves stopped mattering. That is
+  why the boss budget is 1, even though boss waves in other games often use far more.
+- **`growth` is sensitive.** On Hard, 1.08 to 1.09 lets strong bots reach the final boss, while
+  1.12 stops them at wave 20.
+- **`enemiesPerWave` is really an income setting.** At 0.8 with higher bonuses, bots filled 78 of
+  85 cells on Hard, well past the two-thirds target.
+- **The final boss needed a cap (2026-11-01).** Boss health follows the wave budget, but board damage
+  is limited by the 85 buildable cells. Uncapped, Hard's final boss had 29,997 HP, which no board
+  could kill. A full board of 85 synths with unlimited money dealt 67% of it.
+- **Only enemy health changes Easy for casual players (2026-11-01).** Bots that buy one tower a wave
+  can't spend extra income, so raising `waveBonus` to 120 or `startMoney` to 300 changed nothing, and
+  50 starting lives only moved them from wave 23 to wave 26. Casual tier bots won 0% of games at 60%
+  health, 54% at 50%, and 97% at 45%.
 
 ## Research
 
@@ -236,24 +318,3 @@ growth rates do not suit a shorter run. These ideas were used instead:
 
 The 1.10 growth rate here was chosen by testing with the bots. It happens to sit close to the
 Bloons figure, but on top of it, `ramp` adds extra growth in the early waves.
-
-## Open questions
-
-- **Human testing:** the bots are a stand-in. Hard is meant to be beatable by a thoughtful player,
-  and that has not been proven.
-- **Hard is a narrow win:** the best search builds win with 2 lives left, and Expert wins 49% of its
-  games. That margin comes from bots, so a person still has to show that Hard can be won.
-- **Easy offers little challenge to steady builders:** Casual bots win about half their games, while
-  Competent bots win every game without losing a life. A Normal mode could fill that gap.
-- **Late collapse on Hard:** runs hold steady and then fall apart quickly. If that feels abrupt,
-  lower `growth` and raise `ramp`.
-- **Tower balance:** hats are mandatory on Hard, and builds focused on chords never pass wave 20,
-  even though the scripted stack bot survives one wave longer than the spread bot. The tower stats
-  and chord bonus are unchanged. Settle this before adding tower upgrades.
-- **Music build-up:** `intensity` in `src/music.ts` still peaks by wave 5, so the soundtrack stops
-  building for the rest of a 30-wave run.
-- **Sending waves early:** this earns nothing extra, so it only saves time. A bonus would give
-  strong players a reason to take the risk, but it would also add income the targets don't allow
-  for.
-- **Normal mode:** the game has two modes for now. A third would mean adding one entry to
-  `DIFFICULTIES` and a button on the difficulty screen.
