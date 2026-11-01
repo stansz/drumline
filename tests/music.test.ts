@@ -22,6 +22,16 @@ describe('chordForStep', () => {
     expect(chordForStep(STEPS_PER_BAR * 3).name).toBe('Gsus');
     expect(chordForStep(STEPS_PER_BAR * 4).name).toBe('Am7');
   });
+
+  it('uses the chords it is given', () => {
+    const chords = [
+      { name: 'One', pad: [60, 64, 67], bass: 48 },
+      { name: 'Two', pad: [62, 65, 69], bass: 50 },
+    ];
+    expect(chordForStep(0, chords).name).toBe('One');
+    expect(chordForStep(STEPS_PER_BAR, chords).name).toBe('Two');
+    expect(chordForStep(STEPS_PER_BAR * 2, chords).name).toBe('One');
+  });
 });
 
 describe('intensity', () => {

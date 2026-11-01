@@ -1,8 +1,8 @@
 import { BPM, MIX, STEPS_PER_BAR, stepSeconds } from './config';
 import { midiToHz } from './music';
 import type { TowerType } from './sim';
+import { BACKING_DRUMS, DEFAULT_THEME, type DrumPart, type Theme } from './themes';
 
-const PENTATONIC = [220, 261.63, 293.66, 329.63, 392, 440, 523.25, 587.33];
 const REVERB_SECONDS = 2.2;
 const SOFT_CLIP_KNEE = 0.7;
 const SOFT_CLIP_CEILING = 0.95;
@@ -29,10 +29,6 @@ function clampRow(row: number): number {
   return Math.max(0, Math.min(7, row));
 }
 
-function pentatonicFrequency(row: number): number {
-  return PENTATONIC[7 - clampRow(row)] ?? 220;
-}
-
 export class Audio_ {
   private readonly ctx: AudioContext;
   private readonly master: GainNode;
@@ -46,6 +42,7 @@ export class Audio_ {
   private readonly analyserData: Float32Array<ArrayBuffer>;
   private readonly noiseBuffer: AudioBuffer;
   private readonly masterLevel = 0.8;
+  private theme: Theme = DEFAULT_THEME;
   private muted = false;
 
   constructor(ctx: AudioContext) {
@@ -155,17 +152,17 @@ export class Audio_ {
   private playKick(row: number, time: number, level: number): void {
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
-    const base = 52 + (7 - clampRow(row)) * 4;
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(base * 3.2, time);
+    const base = this.theme.kick.baseHz + (7 - clampRow(row)) * 4;
+    osc.type = this.theme.kick.wave;
+    osc.frequency.setValueAtTime(base * this.theme.kick.sweep, time);
     osc.frequency.exponentialRampToValueAtTime(base, time + 0.14);
     gain.gain.setValueAtTime(0.0001, time);
     gain.gain.exponentialRampToValueAtTime(Math.max(MIX.kick * level, 0.0001), time + 0.005);
-    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.3);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + this.theme.kick.decay);
     osc.connect(gain);
     gain.connect(this.towerBus);
     osc.start(time);
-    osc.stop(time + 0.32);
+    osc.stop(time + this.theme.kick.decay + 0.02);
   }
 
   private playHat(row: number, time: number, level: number): void {
@@ -173,16 +170,16 @@ export class Audio_ {
     source.buffer = this.noiseBuffer;
     const highpass = this.ctx.createBiquadFilter();
     highpass.type = 'highpass';
-    highpass.frequency.value = 5600 + (7 - clampRow(row)) * 450;
+    highpass.frequency.value = this.theme.hat.highpassHz + (7 - clampRow(row)) * 450;
     highpass.Q.value = 0.8;
     const gain = this.ctx.createGain();
     gain.gain.setValueAtTime(Math.max(MIX.hat * level, 0.0001), time);
-    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + this.theme.hat.decay);
     source.connect(highpass);
     highpass.connect(gain);
     gain.connect(this.towerBus);
     source.start(time);
-    source.stop(time + 0.06);
+    source.stop(time + this.theme.hat.decay + 0.01);
   }
 
   private playSynth(row: number, time: number, level: number): void {
@@ -190,17 +187,17 @@ export class Audio_ {
     const triangle = this.ctx.createOscillator();
     const filter = this.ctx.createBiquadFilter();
     const gain = this.ctx.createGain();
-    const frequency = pentatonicFrequency(row);
-    saw.type = 'sawtooth';
+    const frequency = midiToHz(this.theme.synth.scale[7 - clampRow(row)] ?? 57);
+    saw.type = this.theme.synth.waves[0];
     saw.frequency.setValueAtTime(frequency, time);
-    triangle.type = 'triangle';
+    triangle.type = this.theme.synth.waves[1];
     triangle.frequency.setValueAtTime(frequency / 2, time);
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(900 + (7 - clampRow(row)) * 160, time);
+    filter.frequency.setValueAtTime(this.theme.synth.cutoffHz + (7 - clampRow(row)) * 160, time);
     filter.Q.value = 1.5;
     gain.gain.setValueAtTime(0.0001, time);
     gain.gain.exponentialRampToValueAtTime(Math.max(MIX.synth * level, 0.0001), time + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.24);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + this.theme.synth.decay);
     saw.connect(filter);
     triangle.connect(filter);
     filter.connect(gain);
@@ -208,8 +205,8 @@ export class Audio_ {
     gain.connect(this.delaySend);
     saw.start(time);
     triangle.start(time);
-    saw.stop(time + 0.26);
-    triangle.stop(time + 0.26);
+    saw.stop(time + this.theme.synth.decay + 0.02);
+    triangle.stop(time + this.theme.synth.decay + 0.02);
   }
 
   playMetronome(time: number, accent: boolean): void {
@@ -228,7 +225,8 @@ export class Audio_ {
   playKill(time: number): void {
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
-    const frequency = PENTATONIC[Math.floor(Math.random() * PENTATONIC.length)] ?? 440;
+    const scale = this.theme.synth.scale;
+    const frequency = midiToHz(scale[Math.floor(Math.random() * scale.length)] ?? 69);
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(frequency * 2, time);
     gain.gain.setValueAtTime(MIX.kill, time);
@@ -251,10 +249,10 @@ export class Audio_ {
     if (notes.length === 0) return;
     const filter = this.ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = 900;
+    filter.frequency.value = this.theme.pad.cutoffHz;
     filter.connect(this.musicBus);
 
-    const perNote = (MIX.pad * level) / notes.length;
+    const perNote = (MIX.pad * this.theme.levels.pad * level) / notes.length;
     const peak = Math.max(perNote, 0.0001);
     const attackEnd = time + 0.4;
     const sustainStart = Math.max(attackEnd, time + duration);
@@ -269,7 +267,7 @@ export class Audio_ {
       gain.connect(filter);
       for (const detune of [-6, 6]) {
         const osc = this.ctx.createOscillator();
-        osc.type = 'sawtooth';
+        osc.type = this.theme.pad.wave;
         osc.frequency.setValueAtTime(midiToHz(note), time);
         osc.detune.setValueAtTime(detune, time);
         osc.connect(gain);
@@ -282,10 +280,13 @@ export class Audio_ {
   playBass(note: number, time: number, level: number): void {
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
-    osc.type = 'triangle';
+    osc.type = this.theme.bassWave;
     osc.frequency.setValueAtTime(midiToHz(note), time);
     gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.exponentialRampToValueAtTime(Math.max(MIX.bass * level, 0.0001), time + 0.01);
+    gain.gain.exponentialRampToValueAtTime(
+      Math.max(MIX.bass * this.theme.levels.bass * level, 0.0001),
+      time + 0.01,
+    );
     gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.3);
     osc.connect(gain);
     gain.connect(this.musicBus);
@@ -296,16 +297,54 @@ export class Audio_ {
   playArp(note: number, time: number, level: number): void {
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
-    osc.type = 'triangle';
+    osc.type = this.theme.arpWave;
     osc.frequency.setValueAtTime(midiToHz(note), time);
     gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.exponentialRampToValueAtTime(Math.max(MIX.arp * level, 0.0001), time + 0.01);
+    gain.gain.exponentialRampToValueAtTime(
+      Math.max(MIX.arp * this.theme.levels.arp * level, 0.0001),
+      time + 0.01,
+    );
     gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.18);
     osc.connect(gain);
     gain.connect(this.musicBus);
     gain.connect(this.delaySend);
     osc.start(time);
     osc.stop(time + 0.2);
+  }
+
+  playBackingDrum(part: DrumPart, time: number, level: number): void {
+    const peak = Math.max(BACKING_DRUMS[part] * level, 0.0001);
+    const gain = this.ctx.createGain();
+    gain.connect(this.musicBus);
+    if (part === 'kick') {
+      const osc = this.ctx.createOscillator();
+      const base = this.theme.kick.baseHz;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(base * 2, time);
+      osc.frequency.exponentialRampToValueAtTime(base, time + 0.08);
+      gain.gain.setValueAtTime(peak, time);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.16);
+      osc.connect(gain);
+      osc.start(time);
+      osc.stop(time + 0.18);
+      return;
+    }
+    const source = this.ctx.createBufferSource();
+    source.buffer = this.noiseBuffer;
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = part === 'snare' ? 'bandpass' : 'highpass';
+    filter.frequency.value = part === 'snare' ? 1800 : this.theme.hat.highpassHz;
+    const decay = part === 'snare' ? 0.12 : 0.03;
+    gain.gain.setValueAtTime(peak, time);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + decay);
+    source.connect(filter);
+    filter.connect(gain);
+    source.start(time);
+    source.stop(time + decay + 0.01);
+  }
+
+  setTheme(theme: Theme): void {
+    this.theme = theme;
   }
 
   setTempo(stepDuration: number): void {

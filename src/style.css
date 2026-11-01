@@ -67,6 +67,19 @@ body {
   color: var(--hat);
 }
 
+#theme {
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 1px solid var(--grid);
+  border-radius: 8px;
+  background: var(--path);
+  color: var(--enemy);
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  white-space: nowrap;
+}
+
 #stage {
   width: min(100%, 896px, calc((100dvh - 190px) * 2));
   aspect-ratio: 2 / 1;

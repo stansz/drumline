@@ -17,6 +17,8 @@ before a wave, then press **Start wave**. Every leaked enemy costs lives; clear
 all five waves without losing all 20 lives to win. Select **Sell** and click a
 tower to refund 70% of its cost.
 
+Press **Theme** to switch between the Neon, Chiptune, Lo-fi, Techno, and Funk soundtracks at any time. Themes change the music and tower sounds, never the tempo or the game.
+
 ## Controls
 
 - **1** Kick, **2** Hat, **3** Synth, **4** Sell
@@ -24,6 +26,7 @@ tower to refund 70% of its cost.
 - **Space** start the next wave
 - **F** toggle 2× speed
 - **M** mute or unmute
+- **T** change the music theme
 - **R** restart
 
 The on-screen buttons provide the same actions.
