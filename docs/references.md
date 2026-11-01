@@ -20,6 +20,7 @@ How Drumline's code fits together. [AGENTS.md](../AGENTS.md) holds the rules.
 - `tests/bots.ts`: scripted players used by `tests/balance.test.ts`. The `chord` bot is called Stack
   in the docs.
 - `tools/playtest/`: headless balance harness. See [Playtest harness](#playtest-harness).
+- `tests/fixtures/`: expert build plans from the strategy search, replayed by `tests/balance.test.ts`.
 - `tests/loudness.ts`: browser-only audio check, with Neon's target levels stored in
   `tests/loudness-baseline.ts`.
 - `.handoff/`: specs for work handed to another agent. The `plan*.md` files are tracked, while

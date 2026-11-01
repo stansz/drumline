@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { DIFFICULTIES } from '../src/config';
 import { playBot, type BotResult, type BotStrategy } from './bots';
+import { DEFAULT_RULES } from '../src/config';
+import { playGame } from '../tools/playtest/bots';
+import { planBot, type BuildPlan } from '../tools/playtest/plans';
+import expertA from './fixtures/hard-expert-a.json';
+import expertB from './fixtures/hard-expert-b.json';
 
 function play(strategy: BotStrategy, difficulty: 'easy' | 'hard'): BotResult {
   const result = playBot(strategy, DIFFICULTIES[difficulty]);
@@ -61,4 +66,18 @@ describe('easy', () => {
   it('stacking wins', () => {
     expect(play('chord', 'easy').result).toBe('won');
   });
+});
+
+describe('expert builds', () => {
+  for (const [name, fixture] of [
+    ['a', expertA],
+    ['b', expertB],
+  ] as const) {
+    it(`expert build ${name} beats hard`, () => {
+      const plan = fixture.plan as BuildPlan;
+      const result = playGame(planBot(plan), DIFFICULTIES.hard, DEFAULT_RULES, 0);
+      expect(result.result).toBe('won');
+      expect(result.bossKills).toEqual([10, 20, 30]);
+    });
+  }
 });

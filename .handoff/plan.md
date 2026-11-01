@@ -1,83 +1,83 @@
-# Plan: lower the boss health cap to 13,000
+# Plan: protect the expert builds with a test
 
 ## Goal
 
-Set `bossHealthCap` to 13000. A person approved this value after the strategy search. The final boss becomes 13,000 HP on Hard and 9,100 HP on Easy. Waves 10 and 20, and all runners, stay the same. Record the search's findings in `docs/balance.md`.
+Store the two best Hard build plans in the repository and test that both win Hard, so a later change can't make Hard unwinnable without a test failing. This changes no game value.
 
 ## Files to touch
 
+Create:
+
+- `tests/fixtures/hard-expert-a.json`
+- `tests/fixtures/hard-expert-b.json`
+
 Modify:
 
-- `src/config.ts`
-- `tests/boss-bound.test.ts`
-- `tests/waves.test.ts`
-- `tests/propose.test.ts`
+- `tests/balance.test.ts`
 - `docs/balance.md`
+- `docs/references.md`
 
 ## Steps
 
-### 1. Set the value
+### 1. Create the fixtures
 
-In `src/config.ts`, change `bossHealthCap: 14000,` to `bossHealthCap: 13000,`.
+`playtest-out/` is ignored by git, and both source files below already exist.
 
-### 2. Update the tests
+Read `playtest-out/search-hard/best-plan.json` and write `tests/fixtures/hard-expert-a.json`. Read `playtest-out/search-hard-deep/best-plan.json` and write `tests/fixtures/hard-expert-b.json`. Each output file holds only the `difficulty` and `plan` fields of its source, formatted as `JSON.stringify({ difficulty, plan }, null, 2) + '\n'`. Keep every plan step, in the same order. Drop `score`, because it was measured at a different boss cap.
 
-- In `tests/boss-bound.test.ts`, change `['hard', 30, 14000, 3256, 16679],` to `['hard', 30, 13000, 3256, 16679],`.
-- In `tests/boss-bound.test.ts`, change `['easy', 30, 9800, 3886, 18247],` to `['easy', 30, 9100, 3886, 18247],`.
-- In `tests/waves.test.ts`, in the `caps the final boss on hard` test, change `.toBe(14000)` to `.toBe(13000)`. Leave the `.toBe(29997)` line.
-- In `tests/waves.test.ts`, in the `scales the cap by healthScale on easy` test, change `.toBe(9800)` to `.toBe(9100)`.
-- In `tests/propose.test.ts`, in the `currentSetting` test, change `.toBe(14000)` to `.toBe(13000)`. Leave every other `14000` in that file, because they are test data.
+Use a one-off `node -e` command. Do not add a script to the repository.
 
-### 3. Update `docs/balance.md`
+### 2. Add the test
 
-Make these changes and no others.
+In `tests/balance.test.ts`, add only new lines. Do not change or remove any existing line.
 
-- Replace the `bossHealthCap` row in **Current curve** with:
+Add these imports after the existing imports:
 
-```md
-| `bossHealthCap` | 13,000 | Highest boss health on Hard, scaled by `healthScale`, so the final boss can be killed |
+```ts
+import { DEFAULT_RULES } from '../src/config';
+import { playGame } from '../tools/playtest/bots';
+import { planBot, type BuildPlan } from '../tools/playtest/plans';
+import expertA from './fixtures/hard-expert-a.json';
+import expertB from './fixtures/hard-expert-b.json';
 ```
 
-- In **Sample waves on Hard**, replace the wave 30 row with:
+Add this block at the end of the file:
 
-```md
-| 30 | 36,929 | Boss, 13,000 HP; 13 runners, 533 HP |
+```ts
+describe('expert builds', () => {
+  for (const [name, fixture] of [
+    ['a', expertA],
+    ['b', expertB],
+  ] as const) {
+    it(`expert build ${name} beats hard`, () => {
+      const plan = fixture.plan as BuildPlan;
+      const result = playGame(planBot(plan), DIFFICULTIES.hard, DEFAULT_RULES, 0);
+      expect(result.result).toBe('won');
+      expect(result.bossKills).toEqual([10, 20, 30]);
+    });
+  }
+});
 ```
 
-- In **Current results**, replace the Easy Spread row with:
+### 3. Update the docs
+
+In `docs/balance.md`, in the **Targets** table, add this row directly after the `Hard: a casual bot loses by wave 20` row:
 
 ```md
-| Easy | Spread | Won with 30 lives | 78 | 12.7 min |
+| Hard: the expert builds in `tests/fixtures/` win | Strong play has to be able to finish the game |
 ```
 
-- In **Tuning findings**, replace the whole `**The final boss needs a cap.**` bullet with:
+In `docs/balance.md`, directly after the sentence ending `either the change went too far or the target needs to move.`, add this paragraph, separated by an empty line:
 
 ```md
-- **The final boss needs a cap.** Boss health follows the wave budget, but board damage is limited
-  by the 85 buildable cells. A `bossHealthCap` sweep on 2026-11-01 chose 14,000, but 258,000 search
-  games then failed to win at that value. At 13,000, the best search builds win Hard with 2 lives
-  left, while the best random bot deals 93% of the boss's health. That is 78% of the 16,679 damage
-  a board bought with all possible income can deal.
-- **Hats are mandatory on Hard.** With hats banned, the best build found stops at wave 20. Banning
-  kicks costs about one wave, and banning synths costs almost nothing. Hats keep chords at full
-  strength, so their value is higher than their damage share suggests.
-- **Spread builds beat focused ones.** On Hard, no build with 60% or more of its towers in one
-  `col % 4` group passed wave 20, and spending 60% or more on kicks also stopped there. Several
-  spread mixes reached wave 30, from 13/17/28 to 26/27/14 kicks, hats, and synths.
+If a change breaks an expert build, run a new search before deciding the build is out of date.
+`npm run playtest:search` finds a replacement, and its `best-plan.json` holds the plan to store.
 ```
 
-- In **Open questions**, replace the whole `**Hard is unproven:**` item with:
+In `docs/references.md`, in **Files**, add this directly after the `tools/playtest/` entry:
 
 ```md
-- **Hard is a narrow win:** the best search builds win with 2 lives left. That margin comes from
-  bots, so a person still has to show that Hard can be won.
-```
-
-- In **Open questions**, add this item directly after the `**Easy's strong bots lose no lives:**` item:
-
-```md
-- **Easy has a skill cliff:** Casual bots win 0% of games and die at waves 22 to 25, while Competent
-  bots, which buy up to 3 towers a wave, win 100%. There is little between the two.
+- `tests/fixtures/`: expert build plans from the strategy search, replayed by `tests/balance.test.ts`.
 ```
 
 ## Acceptance
@@ -85,15 +85,17 @@ Make these changes and no others.
 Run these from the repository root.
 
 - `npm run typecheck` exits 0.
-- `git grep -n "bossHealthCap: 13000," -- src/config.ts` prints 1 line.
-- `git grep -n "Hard is unproven" -- docs/balance.md` prints nothing.
-- `git grep -n "chose 14,000: " -- docs/balance.md` prints nothing.
-- `git diff --quiet -- src/sim.ts src/waves.ts src/main.ts src/render.ts tests/balance.test.ts tests/bots.ts tests/playtest.test.ts tools package.json package-lock.json` exits 0.
+- `node -e "const a=require('./tests/fixtures/hard-expert-a.json'),b=require('./tests/fixtures/hard-expert-b.json');console.log(Object.keys(a).join(),a.plan.length,Object.keys(b).join(),b.plan.length)"` prints `difficulty,plan 78 difficulty,plan 78`.
+- `git diff --numstat -- tests/balance.test.ts` shows 0 deleted lines.
+- `git diff --quiet -- src tools tests/bots.ts package.json package-lock.json` exits 0.
+- `git status --porcelain -- playtest-out` prints nothing.
 
 Verifier only:
 
 - `npm test` exits 0.
 - `npm run build` exits 0.
+- `npm run playtest:tiers -- --plan tests/fixtures/hard-expert-a.json --games 200 --seed 1 --out playtest-out/tiers-hard-13000` exits 0.
+- `npm run playtest:tiers -- --plan playtest-out/search-easy/best-plan.json --games 200 --seed 1 --out playtest-out/tiers-easy-13000` exits 0.
 
 ## Parallel work
 
@@ -107,14 +109,14 @@ None — do it sequentially.
 - If any command fails with `spawn EPERM`, stop and report it.
 - Do not request wider sandbox access, set `NODE_OPTIONS`, or stub modules to get past it.
 - Do not add dependencies, and do not change `package-lock.json`.
-- Do not change any game value other than `bossHealthCap`.
-- Do not change `tests/balance.test.ts`.
+- Do not change any game value.
+- Do not change or remove any existing line in `tests/balance.test.ts`.
 
 ## Out of scope
 
-- Any other balance change, including Easy's difficulty.
-- Changes to `tools/playtest/` or its targets.
-- Any further search or sweep.
+- Any balance change, including Easy's difficulty.
+- Changes to `tools/playtest/`.
+- New searches or sweeps.
 
 ## If blocked
 

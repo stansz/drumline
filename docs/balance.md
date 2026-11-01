@@ -103,6 +103,7 @@ total health than its budget.
 | --- | --- |
 | Hard: strong bots reach wave 25 or later, then lose | Bots place towers by simple rules, so a thinking player should be able to go further and win |
 | Hard: a casual bot loses by wave 20 | Buying one tower a wave should not be enough |
+| Hard: the expert builds in `tests/fixtures/` win | Strong play has to be able to finish the game |
 | Hard: about two thirds of the board is built at the peak | From the Goal Defense article, which suggests peaking at 60–70% full |
 | Easy: strong bots win | A sensible build should finish the game |
 | Easy: a casual bot reaches wave 15 or later | A relaxed player should see a good part of the run |
@@ -110,6 +111,9 @@ total health than its budget.
 
 `tests/balance.test.ts` enforces these targets. If a change breaks one, either the change went
 too far or the target needs to move.
+
+If a change breaks an expert build, run a new search before deciding the build is out of date.
+`npm run playtest:search` finds a replacement, and its `best-plan.json` holds the plan to store.
 
 ## Current results
 
