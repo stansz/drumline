@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { parseFlags } from './args.mjs';
-import { formatComparison, formatSummary, summarize } from './report.ts';
+import { formatComparison, formatSummary, formatWaveTable, summarize } from './report.ts';
 
 const USAGE = 'usage: node tools/playtest/report-cli.mjs --in <path> [--compare <path>]';
 
@@ -17,6 +17,8 @@ try {
   const after = summarize(readRecords(flags.in));
   if (flags.compare === undefined) {
     console.log(formatSummary(after));
+    console.log();
+    console.log(formatWaveTable(after));
   } else {
     const before = summarize(readRecords(flags.compare));
     console.log(formatComparison(before, after));

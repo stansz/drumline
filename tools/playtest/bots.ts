@@ -57,6 +57,9 @@ export interface GameResult {
   bossDamageByWave: Record<string, number>;
   bossKills: number[];
   finalBossWave: number;
+  startLives: number;
+  spentByType: Record<TowerType, number>;
+  finalWaveProgress: number;
 }
 
 const TOWER_ORDER: TowerType[] = ['kick', 'hat', 'synth'];
@@ -197,10 +200,12 @@ export function playGame(
   const bossIds = new Set<number>();
   const bossDamageByWave: Record<string, number> = {};
   const bossKills: number[] = [];
+  let waveDamage = 0;
 
   while (sim.phase !== 'won' && sim.phase !== 'lost') {
     bot.build(ctx);
     if (sim.phase === 'build') sim.startWave();
+    waveDamage = 0;
     while (sim.phase === 'wave') {
       if (bot.onBar && sim.totalSteps % STEPS_PER_BAR === 0) bot.onBar(ctx);
       const events = sim.step();
@@ -210,6 +215,7 @@ export function playGame(
       for (const event of events) {
         if (event.kind === 'hit') {
           damageByType[event.towerType] += event.damage;
+          waveDamage += event.damage;
           if (bossIds.has(event.enemyId)) {
             const key = String(sim.wave);
             bossDamageByWave[key] = (bossDamageByWave[key] ?? 0) + event.damage;
@@ -241,6 +247,15 @@ export function playGame(
     if (groups.some((group) => group.type === 'boss')) finalBossWave = index + 1;
   });
 
+  const spentByType: Record<TowerType, number> = { kick: 0, hat: 0, synth: 0 };
+  for (const tower of sim.towers) spentByType[tower.type] += rules.towers[tower.type].cost;
+
+  const waveHealth = (sim.waves[sim.wave - 1] ?? []).reduce(
+    (sum, group) => sum + group.hp * group.count,
+    0,
+  );
+  const finalWaveProgress = waveHealth === 0 ? 0 : Math.min(1, waveDamage / waveHealth);
+
   return {
     result: sim.phase,
     wave: sim.wave,
@@ -258,5 +273,8 @@ export function playGame(
     bossDamageByWave,
     bossKills,
     finalBossWave,
+    startLives: difficulty.startLives,
+    spentByType,
+    finalWaveProgress,
   };
 }

@@ -4,9 +4,11 @@ import {
   playGame,
   policyBot,
   randomPolicy,
+  type Bot,
   type GameResult,
   type Policy,
 } from './bots';
+import { noisyPlan, planBot, type BuildPlan } from './plans';
 import {
   configHash,
   resolveDifficulty,
@@ -14,6 +16,7 @@ import {
   type DifficultyPatch,
   type RulesPatch,
 } from './rules';
+import { tierPolicy, type PolicyTier } from './tiers';
 
 export interface Job {
   id: string;
@@ -22,6 +25,9 @@ export interface Job {
   games: number;
   rules?: RulesPatch;
   difficultyPatch?: DifficultyPatch;
+  bot?:
+    | { kind: 'tier'; tier: PolicyTier }
+    | { kind: 'plan'; plan: BuildPlan; noise: number };
 }
 
 interface Resolved {
@@ -35,7 +41,7 @@ export type GameRecord = {
   index: number;
   config: string;
   seed: number;
-  policy: Policy;
+  policy: Policy | null;
 } & GameResult;
 
 const resolvedJobs = new WeakMap<Job, Resolved>();
@@ -57,13 +63,22 @@ export function gameSeed(job: Job, index: number): number {
 export function runGame(job: Job, index: number): string {
   const { rules, difficulty } = resolveJob(job);
   const seed = gameSeed(job, index);
-  const policy = randomPolicy(makeRng(seed));
-  const result = playGame(
-    policyBot(policy, rules),
-    difficulty,
-    rules,
-    seed ^ 0x5bd1e995,
-  );
+
+  let policy: Policy | null;
+  let bot: Bot;
+  if (!job.bot) {
+    policy = randomPolicy(makeRng(seed));
+    bot = policyBot(policy, rules);
+  } else if (job.bot.kind === 'tier') {
+    const rng = makeRng(seed);
+    policy = tierPolicy(job.bot.tier, rng);
+    bot = policyBot(policy, rules);
+  } else {
+    policy = null;
+    bot = planBot(noisyPlan(job.bot.plan, makeRng(seed), job.bot.noise));
+  }
+
+  const result = playGame(bot, difficulty, rules, seed ^ 0x5bd1e995);
 
   return JSON.stringify({
     job: job.id,

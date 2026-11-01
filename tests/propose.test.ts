@@ -28,6 +28,8 @@ function summary(config: string, winRate: number, cleanWinRate = winRate): Summa
     meanIdleNoteShare: 0,
     finalBossWave: 30,
     bestFinalBossDamage: 1000,
+    damagePerDollar: { kick: 0, hat: 0, synth: 0 },
+    byWave: [],
   };
 }
 

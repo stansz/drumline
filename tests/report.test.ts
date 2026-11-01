@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GameRecord } from '../tools/playtest/job';
 import type { Policy } from '../tools/playtest/bots';
-import { formatComparison, formatSummary, summarize } from '../tools/playtest/report';
+import { formatComparison, formatSummary, formatWaveTable, summarize } from '../tools/playtest/report';
 
 const policy: Policy = {
   weights: { kick: 1, hat: 1, synth: 1 },
@@ -36,6 +36,9 @@ function record(overrides: Partial<GameRecord>): GameRecord {
     bossDamageByWave: {},
     bossKills: [],
     finalBossWave: 30,
+    startLives: 20,
+    spentByType: { kick: 0, hat: 0, synth: 0 },
+    finalWaveProgress: 0,
     ...overrides,
   };
 }
@@ -111,6 +114,79 @@ describe('summarize', () => {
     const table = formatSummary(summary);
     expect(table).toContain('| Measure | Value |');
     expect(table).toContain('| Win rate | 100.0% |');
+  });
+
+  it('works out damage per dollar, and zero when nothing was spent', () => {
+    const summary = summarize([
+      record({
+        index: 0,
+        damageByType: { kick: 10, hat: 20, synth: 30 },
+        spentByType: { kick: 100, hat: 100, synth: 0 },
+      }),
+      record({
+        index: 1,
+        damageByType: { kick: 30, hat: 0, synth: 0 },
+        spentByType: { kick: 100, hat: 0, synth: 0 },
+      }),
+    ]);
+    expect(summary.damagePerDollar.kick).toBeCloseTo(0.2);
+    expect(summary.damagePerDollar.hat).toBeCloseTo(0.2);
+    expect(summary.damagePerDollar.synth).toBe(0);
+  });
+
+  it('works out per-wave reached counts, deaths, and mean lives lost', () => {
+    const summary = summarize([
+      record({
+        index: 0,
+        result: 'lost',
+        wave: 3,
+        startLives: 20,
+        livesByWave: [18, 15, 10],
+      }),
+      record({
+        index: 1,
+        result: 'won',
+        wave: 5,
+        startLives: 20,
+        livesByWave: [20, 18, 18, 16, 16],
+      }),
+    ]);
+    expect(summary.byWave).toHaveLength(5);
+    expect(summary.byWave[0]).toEqual({
+      wave: 1,
+      reached: 2,
+      deaths: 0,
+      meanLivesLost: 1,
+    });
+    expect(summary.byWave[1]).toEqual({
+      wave: 2,
+      reached: 2,
+      deaths: 0,
+      meanLivesLost: 2.5,
+    });
+    expect(summary.byWave[2]).toEqual({
+      wave: 3,
+      reached: 2,
+      deaths: 1,
+      meanLivesLost: 2.5,
+    });
+    expect(summary.byWave[3]).toEqual({
+      wave: 4,
+      reached: 1,
+      deaths: 0,
+      meanLivesLost: 2,
+    });
+    expect(summary.byWave[4]).toEqual({
+      wave: 5,
+      reached: 1,
+      deaths: 0,
+      meanLivesLost: 0,
+    });
+  });
+
+  it('formats the per-wave table', () => {
+    const summary = summarize([record({ index: 0 })]);
+    expect(formatWaveTable(summary)).toContain('| Wave | Reached | Deaths | Mean lives lost |');
   });
 });
 

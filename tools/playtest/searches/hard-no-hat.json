@@ -1,0 +1,1 @@
+{ "id": "hard-no-hat", "difficulty": "hard", "seed": 21, "initial": 2000, "generations": 100, "batch": 500, "bannedTowers": ["hat"] }

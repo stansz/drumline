@@ -2,6 +2,13 @@ import type { DifficultyId } from '../../src/config';
 import type { TowerType } from '../../src/sim';
 import type { GameRecord } from './job';
 
+export interface WaveStats {
+  wave: number;
+  reached: number;
+  deaths: number;
+  meanLivesLost: number;
+}
+
 export interface Summary {
   config: string;
   difficulty: DifficultyId;
@@ -18,6 +25,8 @@ export interface Summary {
   meanIdleNoteShare: number;
   finalBossWave: number;
   bestFinalBossDamage: number;
+  damagePerDollar: Record<TowerType, number>;
+  byWave: WaveStats[];
 }
 
 const TOWER_TYPES: TowerType[] = ['kick', 'hat', 'synth'];
@@ -78,6 +87,38 @@ export function summarize(records: GameRecord[]): Summary {
     if (damaged > bestFinalBossDamage) bestFinalBossDamage = damaged;
   }
 
+  const spentTotal: Record<TowerType, number> = { kick: 0, hat: 0, synth: 0 };
+  for (const record of ordered) {
+    for (const type of TOWER_TYPES) {
+      spentTotal[type] += record.spentByType[type];
+    }
+  }
+  const damagePerDollar = {} as Record<TowerType, number>;
+  for (const type of TOWER_TYPES) {
+    damagePerDollar[type] = spentTotal[type] === 0 ? 0 : damageTotal[type] / spentTotal[type];
+  }
+
+  const highestWave = ordered.reduce((highest, record) => Math.max(highest, record.wave), 0);
+  const byWave: WaveStats[] = [];
+  for (let wave = 1; wave <= highestWave; wave += 1) {
+    const reachedRecords = ordered.filter((record) => record.wave >= wave);
+    let livesLostTotal = 0;
+    for (const record of reachedRecords) {
+      if (wave === 1) {
+        livesLostTotal += record.startLives - (record.livesByWave[0] ?? record.startLives);
+      } else {
+        livesLostTotal +=
+          (record.livesByWave[wave - 2] ?? 0) - (record.livesByWave[wave - 1] ?? 0);
+      }
+    }
+    byWave.push({
+      wave,
+      reached: reachedRecords.length,
+      deaths: deathsByWave[String(wave)] ?? 0,
+      meanLivesLost: reachedRecords.length === 0 ? 0 : livesLostTotal / reachedRecords.length,
+    });
+  }
+
   return {
     config: first.config,
     difficulty: first.difficulty,
@@ -94,6 +135,8 @@ export function summarize(records: GameRecord[]): Summary {
     meanIdleNoteShare: idleTotal / games,
     finalBossWave,
     bestFinalBossDamage,
+    damagePerDollar,
+    byWave,
   };
 }
 
@@ -109,6 +152,9 @@ function summaryRows(summary: Summary): Array<[string, string]> {
     ['Kick damage share', percent(summary.damageShare.kick)],
     ['Hat damage share', percent(summary.damageShare.hat)],
     ['Synth damage share', percent(summary.damageShare.synth)],
+    ['Kick damage per dollar', summary.damagePerDollar.kick.toFixed(2)],
+    ['Hat damage per dollar', summary.damagePerDollar.hat.toFixed(2)],
+    ['Synth damage per dollar', summary.damagePerDollar.synth.toFixed(2)],
   ];
 }
 
@@ -116,6 +162,16 @@ export function formatSummary(summary: Summary): string {
   const lines = ['| Measure | Value |', '| --- | --- |'];
   for (const [measure, value] of summaryRows(summary)) {
     lines.push(`| ${measure} | ${value} |`);
+  }
+  return lines.join('\n');
+}
+
+export function formatWaveTable(summary: Summary): string {
+  const lines = ['| Wave | Reached | Deaths | Mean lives lost |', '| --- | --- | --- | --- |'];
+  for (const stats of summary.byWave) {
+    lines.push(
+      `| ${stats.wave} | ${stats.reached} | ${stats.deaths} | ${stats.meanLivesLost.toFixed(2)} |`,
+    );
   }
   return lines.join('\n');
 }

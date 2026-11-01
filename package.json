@@ -11,7 +11,9 @@
     "build": "tsc --noEmit && vite build",
     "playtest": "node --import ./tools/playtest/resolve-ts.mjs tools/playtest/run.mjs",
     "playtest:report": "node --import ./tools/playtest/resolve-ts.mjs tools/playtest/report-cli.mjs",
-    "playtest:sweep": "node --import ./tools/playtest/resolve-ts.mjs tools/playtest/sweep.mjs"
+    "playtest:sweep": "node --import ./tools/playtest/resolve-ts.mjs tools/playtest/sweep.mjs",
+    "playtest:search": "node --import ./tools/playtest/resolve-ts.mjs tools/playtest/search-cli.mjs",
+    "playtest:tiers": "node --import ./tools/playtest/resolve-ts.mjs tools/playtest/tiers-cli.mjs"
   },
   "devDependencies": {
     "typescript": "7.0.2",

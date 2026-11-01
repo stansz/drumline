@@ -176,6 +176,9 @@ run `npm test`, and update the results in this file.
 Until the strategy search exists, the bots are random policies, not strong players. Use proposals
 for coarse fixes, not fine tuning.
 
+The strategy search and skill tiers show what strong play can do, and where each tier loses. Their
+targets aren't in `tools/playtest/targets.ts` yet.
+
 ## Research
 
 Numbers from other games were not copied directly. Most are built for 20 to 80 waves, so their

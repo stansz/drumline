@@ -58,6 +58,8 @@ npm run build
 npm run playtest -- --job tools/playtest/jobs/smoke.json --out playtest-out/smoke.jsonl
 npm run playtest:report -- --in playtest-out/smoke.jsonl
 npm run playtest:sweep -- --sweep tools/playtest/sweeps/boss-cap.json --out playtest-out/boss-cap
+npm run playtest:search -- --search tools/playtest/searches/hard.json --out playtest-out/search-hard
+npm run playtest:tiers -- --plan playtest-out/search-hard/best-plan.json --games 200 --seed 1 --out playtest-out/tiers-hard
 ```
 
 `npm run build` type-checks the project and writes a static site to `dist/`.

@@ -101,6 +101,13 @@ npm run playtest -- --job tools/playtest/jobs/smoke.json --out playtest-out/smok
   targets, and writes `proposal.md` and `proposal.json`. A sweep file sets `id`, `setting`,
   `values`, `games`, and `seed`. The proposal is the passing value with the largest worst-case
   margin across the targets.
+- `npm run playtest:search` runs a MAP-Elites search over build plans, which are ordered lists of
+  towers to buy. It keeps the best plan for each style, where a style is the share of money spent
+  on kicks and synths, plus how many towers share a `col % 4` class. A search file can set
+  `bannedTowers`, which shows how much a tower is worth. It writes `report.md`, `archive.json`,
+  and `best-plan.json`.
+- `npm run playtest:tiers` runs Casual, Competent, Strong, and Expert bots and writes `tiers.md`.
+  Expert replays a search's best plan with seeded mistakes.
 
 ## Saved settings
 
