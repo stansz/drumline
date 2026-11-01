@@ -23,7 +23,7 @@ its cost.
 
 | Mode | Lives | Starting money | Wave bonus | Enemy health |
 | --- | --- | --- | --- | --- |
-| Easy | 30 | $150 | $40 | 70% |
+| Easy | 30 | $150 | $40 | 50% |
 | Hard | 20 | $100 | $20 | 100% |
 
 [docs/balance.md](docs/balance.md) explains how the difficulty curve works and how

@@ -1,83 +1,74 @@
-# Plan: protect the expert builds with a test
+# Plan: lower Easy's enemy health to 50%
 
 ## Goal
 
-Store the two best Hard build plans in the repository and test that both win Hard, so a later change can't make Hard unwinnable without a test failing. This changes no game value.
+Set Easy's `healthScale` to 0.5, so a casual player can beat Easy about half the time. A person approved this value. Hard does not change.
 
 ## Files to touch
 
-Create:
-
-- `tests/fixtures/hard-expert-a.json`
-- `tests/fixtures/hard-expert-b.json`
-
 Modify:
 
-- `tests/balance.test.ts`
+- `src/config.ts`
+- `tests/boss-bound.test.ts`
+- `tests/waves.test.ts`
+- `README.md`
 - `docs/balance.md`
-- `docs/references.md`
 
 ## Steps
 
-### 1. Create the fixtures
+### 1. Set the value
 
-`playtest-out/` is ignored by git, and both source files below already exist.
+In `src/config.ts`, in `DIFFICULTIES.easy`, change `healthScale: 0.7,` to `healthScale: 0.5,`. Do not change Hard's `healthScale`.
 
-Read `playtest-out/search-hard/best-plan.json` and write `tests/fixtures/hard-expert-a.json`. Read `playtest-out/search-hard-deep/best-plan.json` and write `tests/fixtures/hard-expert-b.json`. Each output file holds only the `difficulty` and `plan` fields of its source, formatted as `JSON.stringify({ difficulty, plan }, null, 2) + '\n'`. Keep every plan step, in the same order. Drop `score`, because it was measured at a different boss cap.
+### 2. Update the tests
 
-Use a one-off `node -e` command. Do not add a script to the repository.
-
-### 2. Add the test
-
-In `tests/balance.test.ts`, add only new lines. Do not change or remove any existing line.
-
-Add these imports after the existing imports:
+In `tests/boss-bound.test.ts`, replace the three Easy rows of `expected` with:
 
 ```ts
-import { DEFAULT_RULES } from '../src/config';
-import { playGame } from '../tools/playtest/bots';
-import { planBot, type BuildPlan } from '../tools/playtest/plans';
-import expertA from './fixtures/hard-expert-a.json';
-import expertB from './fixtures/hard-expert-b.json';
+  ['easy', 10, 931, 1044, 7691],
+  ['easy', 20, 4175, 2309, 13636],
+  ['easy', 30, 6500, 3886, 18247],
 ```
 
-Add this block at the end of the file:
+In `tests/waves.test.ts`, in the `scales the cap by healthScale on easy` test, change `.toBe(9100)` to `.toBe(6500)`.
 
-```ts
-describe('expert builds', () => {
-  for (const [name, fixture] of [
-    ['a', expertA],
-    ['b', expertB],
-  ] as const) {
-    it(`expert build ${name} beats hard`, () => {
-      const plan = fixture.plan as BuildPlan;
-      const result = playGame(planBot(plan), DIFFICULTIES.hard, DEFAULT_RULES, 0);
-      expect(result.result).toBe('won');
-      expect(result.bossKills).toEqual([10, 20, 30]);
-    });
-  }
-});
-```
+### 3. Update `README.md`
 
-### 3. Update the docs
-
-In `docs/balance.md`, in the **Targets** table, add this row directly after the `Hard: a casual bot loses by wave 20` row:
+In the mode table, replace the Easy row with:
 
 ```md
-| Hard: the expert builds in `tests/fixtures/` win | Strong play has to be able to finish the game |
+| Easy | 30 | $150 | $40 | 50% |
 ```
 
-In `docs/balance.md`, directly after the sentence ending `either the change went too far or the target needs to move.`, add this paragraph, separated by an empty line:
+### 4. Update `docs/balance.md`
+
+Make these changes and no others.
+
+- In **Quick reference**, change `| Enemy health | 70% | 100% |` to `| Enemy health | 50% | 100% |`.
+- Change `Easy uses the same waves with 70% of this health.` to `Easy uses the same waves with 50% of this health.`
+- In **Current results**, replace the three Easy rows with:
 
 ```md
-If a change breaks an expert build, run a new search before deciding the build is out of date.
-`npm run playtest:search` finds a replacement, and its `best-plan.json` holds the plan to store.
+| Easy | Casual | Lost at wave 27 | 27 | 15.5 min |
+| Easy | Spread | Won with 30 lives | 78 | 10.1 min |
+| Easy | Stack | Won with 30 lives | 63 | 10.3 min |
 ```
 
-In `docs/references.md`, in **Files**, add this directly after the `tools/playtest/` entry:
+- In **Tuning findings**, add this bullet at the end of the list:
 
 ```md
-- `tests/fixtures/`: expert build plans from the strategy search, replayed by `tests/balance.test.ts`.
+- **Only enemy health changes Easy for casual players.** Bots that buy one tower a wave can't spend
+  extra income, so raising `waveBonus` to 120 or `startMoney` to 300 changed nothing, and 50 starting
+  lives only moved them from wave 23 to wave 26. At 60% health they won 0% of games, at 50% they
+  won 54%, and at 45% they won 97%.
+```
+
+- In **Open questions**, delete the whole `**Easy's strong bots lose no lives:**` item and the whole `**Easy has a skill cliff:**` item.
+- In **Open questions**, add this item directly after the `**Hard is a narrow win:**` item:
+
+```md
+- **Easy offers little challenge to steady builders:** Casual bots win about half their games, while
+  Competent bots win every game without losing a life. A Normal mode could fill that gap.
 ```
 
 ## Acceptance
@@ -85,17 +76,17 @@ In `docs/references.md`, in **Files**, add this directly after the `tools/playte
 Run these from the repository root.
 
 - `npm run typecheck` exits 0.
-- `node -e "const a=require('./tests/fixtures/hard-expert-a.json'),b=require('./tests/fixtures/hard-expert-b.json');console.log(Object.keys(a).join(),a.plan.length,Object.keys(b).join(),b.plan.length)"` prints `difficulty,plan 78 difficulty,plan 78`.
-- `git diff --numstat -- tests/balance.test.ts` shows 0 deleted lines.
-- `git diff --quiet -- src tools tests/bots.ts package.json package-lock.json` exits 0.
-- `git status --porcelain -- playtest-out` prints nothing.
+- `git grep -n "healthScale: 0.5," -- src/config.ts` prints 1 line.
+- `git grep -n "Easy has a skill cliff" -- docs/balance.md` prints nothing.
+- `git grep -n "with 70% of this health" -- docs/balance.md` prints nothing.
+- `git diff --quiet -- src/sim.ts src/waves.ts src/main.ts src/render.ts tests/balance.test.ts tests/bots.ts tests/playtest.test.ts tests/fixtures tools package.json package-lock.json` exits 0.
 
 Verifier only:
 
 - `npm test` exits 0.
 - `npm run build` exits 0.
-- `npm run playtest:tiers -- --plan tests/fixtures/hard-expert-a.json --games 200 --seed 1 --out playtest-out/tiers-hard-13000` exits 0.
-- `npm run playtest:tiers -- --plan playtest-out/search-easy/best-plan.json --games 200 --seed 1 --out playtest-out/tiers-easy-13000` exits 0.
+- `npm run playtest:tiers -- --plan playtest-out/search-easy/best-plan.json --games 200 --seed 1 --out playtest-out/tiers-easy-50` exits 0.
+- `npm run playtest:tiers -- --plan tests/fixtures/hard-expert-a.json --games 200 --seed 1 --out playtest-out/tiers-hard-final` exits 0.
 
 ## Parallel work
 
@@ -109,12 +100,13 @@ None — do it sequentially.
 - If any command fails with `spawn EPERM`, stop and report it.
 - Do not request wider sandbox access, set `NODE_OPTIONS`, or stub modules to get past it.
 - Do not add dependencies, and do not change `package-lock.json`.
-- Do not change any game value.
-- Do not change or remove any existing line in `tests/balance.test.ts`.
+- Do not change any game value other than Easy's `healthScale`.
+- Do not change `tests/balance.test.ts`.
 
 ## Out of scope
 
-- Any balance change, including Easy's difficulty.
+- Any change to Hard, including `bossHealthCap`.
+- Adding a Normal mode.
 - Changes to `tools/playtest/`.
 - New searches or sweeps.
 

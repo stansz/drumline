@@ -13,7 +13,7 @@ playtest has confirmed these numbers yet.
 | Starting lives | 30 | 20 |
 | Starting money | $150 | $100 |
 | Bonus for clearing a wave | $40 | $20 |
-| Enemy health | 70% | 100% |
+| Enemy health | 50% | 100% |
 
 Enemy speed, tower stats, kill rewards, and the chord bonus are the same on both.
 
@@ -94,7 +94,7 @@ more, and enemy numbers are what grow income.
 | 29 | 32,534 | 15 blips, 1,600 HP; 10 runners, 853 HP |
 | 30 | 36,929 | Boss, 13,000 HP; 13 runners, 533 HP |
 
-Easy uses the same waves with 70% of this health. The final boss is capped, so wave 30 has less
+Easy uses the same waves with 50% of this health. The final boss is capped, so wave 30 has less
 total health than its budget.
 
 ## Targets
@@ -122,9 +122,9 @@ If a change breaks an expert build, run a new search before deciding the build i
 | Hard | Casual | Lost at wave 10 | 10 | 7.0 min |
 | Hard | Spread | Lost at wave 28 | 58 | 16.6 min |
 | Hard | Stack | Lost at wave 29 | 61 | 15.9 min |
-| Easy | Casual | Lost at wave 21 | 21 | 13.4 min |
-| Easy | Spread | Won with 30 lives | 78 | 12.7 min |
-| Easy | Stack | Won with 30 lives | 63 | 12.7 min |
+| Easy | Casual | Lost at wave 27 | 27 | 15.5 min |
+| Easy | Spread | Won with 30 lives | 78 | 10.1 min |
+| Easy | Stack | Won with 30 lives | 63 | 10.3 min |
 
 Times count wave play only, not time spent building. Runs take half as long at 240 BPM. With
 **Auto** on, waiting out every countdown adds about 3.9 minutes at 120 BPM.
@@ -164,6 +164,10 @@ time. A player who needs longer can turn **Auto** off.
 - **Spread builds beat focused ones.** On Hard, no build with 60% or more of its towers in one
   `col % 4` group passed wave 20, and spending 60% or more on kicks also stopped there. Several
   spread mixes reached wave 30, from 13/17/28 to 26/27/14 kicks, hats, and synths.
+- **Only enemy health changes Easy for casual players.** Bots that buy one tower a wave can't spend
+  extra income, so raising `waveBonus` to 120 or `startMoney` to 300 changed nothing, and 50 starting
+  lives only moved them from wave 23 to wave 26. At 60% health they won 0% of games, at 50% they
+  won 54%, and at 45% they won 97%.
 
 ## How to retune
 
@@ -212,10 +216,8 @@ Bloons figure, but on top of it, `ramp` adds extra growth in the early waves.
   and that has not been proven.
 - **Hard is a narrow win:** the best search builds win with 2 lives left. That margin comes from
   bots, so a person still has to show that Hard can be won.
-- **Easy's strong bots lose no lives:** both win with all 30 lives now that they kill the final boss.
-  Easy may be too easy for a player who builds well.
-- **Easy has a skill cliff:** Casual bots win 0% of games and die at waves 22 to 25, while Competent
-  bots, which buy up to 3 towers a wave, win 100%. There is little between the two.
+- **Easy offers little challenge to steady builders:** Casual bots win about half their games, while
+  Competent bots win every game without losing a life. A Normal mode could fill that gap.
 - **Late collapse on Hard:** runs hold steady and then fall apart quickly. If that feels abrupt,
   lower `growth` and raise `ramp`.
 - **Stacking:** the stack bot survives one wave longer than the spread bot on Hard, so the gap

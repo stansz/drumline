@@ -132,7 +132,7 @@ export const DIFFICULTIES: Record<DifficultyId, Difficulty> = {
     startMoney: 150,
     startLives: 30,
     waveBonus: 40,
-    healthScale: 0.7,
+    healthScale: 0.5,
     curve: WAVE_CURVE,
   },
   hard: {
