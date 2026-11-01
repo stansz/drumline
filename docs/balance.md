@@ -178,6 +178,11 @@ Bloons figure, but on top of it, `ramp` adds extra growth in the early waves.
 
 ## Open questions
 
+- **Final bosses can't be killed:** on Hard, the wave 30 boss has 29,997 HP, while a board bought
+  with all the money the game pays out deals at most 16,679 damage to it. Even 85 synths with
+  unlimited money deal about 20,000 and lose. Easy's boss has 20,998 HP against a 18,247 limit, so
+  Easy wins depend on it leaking. Boss health grows with the wave budget, but board damage is
+  capped by the 85 buildable cells. `tests/boss-bound.test.ts` records this with `it.fails`.
 - **Human testing:** the bots are a stand-in. Hard is meant to be beatable by a thoughtful player,
   and that has not been proven.
 - **Late collapse on Hard:** runs hold steady and then fall apart quickly. If that feels abrupt,

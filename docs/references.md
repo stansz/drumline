@@ -5,7 +5,7 @@ How Drumline's code fits together. [AGENTS.md](../AGENTS.md) holds the rules.
 ## Files
 
 - `src/config.ts`: tunable values, including `WAVE_CURVE`, `DIFFICULTIES`, `TOWERS`, `ENEMIES`,
-  `SPEED_BPMS`, and `AUTO_WAVE_STEPS`.
+  `DEFAULT_RULES`, `SPEED_BPMS`, and `AUTO_WAVE_STEPS`.
 - `src/sim.ts`: game rules. `step()` advances one sixteenth note and returns `SimEvent`s.
 - `src/waves.ts`: builds the waves from `WAVE_CURVE`.
 - `src/scheduler.ts`: step clock that runs on `AudioContext` time, slightly ahead of playback.
@@ -19,6 +19,7 @@ How Drumline's code fits together. [AGENTS.md](../AGENTS.md) holds the rules.
 - `src/main.ts`: connects everything, and handles input, the HUD, and saved settings.
 - `tests/bots.ts`: scripted players used by `tests/balance.test.ts`. The `chord` bot is called Stack
   in the docs.
+- `tools/playtest/`: headless balance harness. See [Playtest harness](#playtest-harness).
 - `tests/loudness.ts`: browser-only audio check, with Neon's target levels stored in
   `tests/loudness-baseline.ts`.
 - `.handoff/`: specs for work handed to another agent. The `plan*.md` files are tracked, while
@@ -70,6 +71,29 @@ board took about 70% before voice limits and 28% after, and Techno went from 102
 - Don't add automation to long-lived `AudioParam`s on every step. Those events add up over a run.
 - The game uses `latencyHint: 'playback'`, because nothing depends on tapping in time. `frame()`
   subtracts the output latency, so the board matches what's heard.
+
+## Playtest harness
+
+`tools/playtest/` plays seeded bot games in Node worker threads, with no browser or build step.
+The sim has no randomness, so the same bot always gets the same result. Each game therefore uses a
+different seeded policy, and all bot randomness stays in the bot.
+
+```sh
+npm run playtest -- --job tools/playtest/jobs/smoke.json --out playtest-out/smoke.jsonl
+```
+
+- A job file sets `id`, `difficulty`, `seed`, and `games`, with optional `rules` and
+  `difficultyPatch` changes to game values.
+- The output has one JSON line per game. `config` is a hash of the resolved values, so results
+  from different configs can't be mixed by mistake.
+- `--workers` sets the thread count. `--start` and `--end` run part of a job, so it can be split
+  across machines. Combined shards match a single run line for line once sorted, which
+  `tools/playtest/same-lines.mjs` checks.
+- `Sim` takes a `Rules` object as its second argument. `resolveRules` and `resolveDifficulty` in
+  `tools/playtest/rules.ts` build changed copies without touching the config constants.
+- `tools/playtest/bound.ts` works out the most damage any static board can deal to a boss.
+- A new bot implements `Bot` from `tools/playtest/bots.ts`, and takes randomness only from
+  `ctx.rng`.
 
 ## Saved settings
 

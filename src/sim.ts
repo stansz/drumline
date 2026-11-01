@@ -1,16 +1,13 @@
 import {
   AUTO_WAVE_STEPS,
-  CHORD_BONUS_PER_TOWER,
-  CHORD_MAX_TOWERS,
+  DEFAULT_RULES,
   DIFFICULTIES,
-  ENEMIES,
   GRID_COLS,
   GRID_ROWS,
   PATH_WAYPOINTS,
-  SELL_REFUND,
   STEPS_PER_BAR,
-  TOWERS,
   type Difficulty,
+  type Rules,
   type WaveGroup,
 } from './config';
 import { buildWaves } from './waves';
@@ -53,7 +50,14 @@ export type SimEvent =
       step: number;
     }
   | { kind: 'chain'; fromX: number; fromY: number; x: number; y: number }
-  | { kind: 'hit'; x: number; y: number; towerType: TowerType; enemyId: number }
+  | {
+      kind: 'hit';
+      x: number;
+      y: number;
+      towerType: TowerType;
+      enemyId: number;
+      damage: number;
+    }
   | { kind: 'kill'; x: number; y: number; enemyType: EnemyType }
   | { kind: 'leak'; lives: number }
   | { kind: 'waveStart'; wave: number }
@@ -157,6 +161,7 @@ export function firesThisStep(type: TowerType, col: number, stepIndex: number): 
 
 export class Sim {
   readonly difficulty: Difficulty;
+  readonly rules: Rules;
   readonly waves: WaveGroup[][];
   money: number;
   lives: number;
@@ -173,9 +178,10 @@ export class Sim {
   private waveStartPending: boolean;
   private nextWaveStep: number | null;
 
-  constructor(difficulty: Difficulty = DIFFICULTIES.hard) {
+  constructor(difficulty: Difficulty = DIFFICULTIES.hard, rules: Rules = DEFAULT_RULES) {
     this.difficulty = difficulty;
-    this.waves = buildWaves(difficulty);
+    this.rules = rules;
+    this.waves = buildWaves(difficulty, rules.enemies);
     this.money = difficulty.startMoney;
     this.lives = difficulty.startLives;
     this.wave = 0;
@@ -205,7 +211,7 @@ export class Sim {
   placeTower(type: TowerType, col: number, row: number): boolean {
     if (this.phase === 'won' || this.phase === 'lost') return false;
     if (!this.canPlace(col, row)) return false;
-    const cost = TOWERS[type].cost;
+    const cost = this.rules.towers[type].cost;
     if (this.money < cost) return false;
     this.money -= cost;
     this.towers.push({ type, col, row });
@@ -217,7 +223,7 @@ export class Sim {
     if (index === -1) return false;
     const tower = this.towers[index];
     if (!tower) return false;
-    this.money += Math.floor(TOWERS[tower.type].cost * SELL_REFUND);
+    this.money += Math.floor(this.rules.towers[tower.type].cost * this.rules.sellRefund);
     this.towers.splice(index, 1);
     return true;
   }
@@ -294,10 +300,10 @@ export class Sim {
     );
     const chordSize = firing.length;
     const multiplier =
-      1 + CHORD_BONUS_PER_TOWER * (Math.min(chordSize, CHORD_MAX_TOWERS) - 1);
+      1 + this.rules.chordBonusPerTower * (Math.min(chordSize, this.rules.chordMaxTowers) - 1);
 
     for (const tower of firing) {
-      const stats = TOWERS[tower.type];
+      const stats = this.rules.towers[tower.type];
       const inRange = this.enemiesInRange(tower.col, tower.row, stats.range);
       let target: Enemy | null = null;
       for (const enemy of inRange) {
@@ -341,6 +347,7 @@ export class Sim {
               y: point.y,
               towerType: tower.type,
               enemyId: enemy.id,
+              damage: baseDamage,
             });
           }
         }
@@ -352,6 +359,7 @@ export class Sim {
           y: targetPoint.y,
           towerType: tower.type,
           enemyId: target.id,
+          damage: baseDamage,
         });
 
         const alreadyHit = new Set<Enemy>([target]);
@@ -387,6 +395,7 @@ export class Sim {
             y: point.y,
             towerType: tower.type,
             enemyId: next.id,
+            damage: baseDamage * 0.5,
           });
           previous = next;
         }
@@ -398,6 +407,7 @@ export class Sim {
           y: targetPoint.y,
           towerType: tower.type,
           enemyId: target.id,
+          damage: baseDamage,
         });
       }
     }
@@ -431,7 +441,7 @@ export class Sim {
     for (const enemy of this.enemies) {
       if (enemy.hp <= 0) {
         const point = pathPoint(enemy.progress);
-        this.money += ENEMIES[enemy.type].bounty;
+        this.money += this.rules.enemies[enemy.type].bounty;
         events.push({
           kind: 'kill',
           x: point.x,
@@ -446,9 +456,9 @@ export class Sim {
 
     const stillAlive: Enemy[] = [];
     for (const enemy of this.enemies) {
-      enemy.progress += ENEMIES[enemy.type].speed;
+      enemy.progress += this.rules.enemies[enemy.type].speed;
       if (enemy.progress >= PATH_LENGTH) {
-        this.lives = Math.max(0, this.lives - ENEMIES[enemy.type].leak);
+        this.lives = Math.max(0, this.lives - this.rules.enemies[enemy.type].leak);
         events.push({ kind: 'leak', lives: this.lives });
       } else {
         stillAlive.push(enemy);

@@ -8,7 +8,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "build": "tsc --noEmit && vite build"
+    "build": "tsc --noEmit && vite build",
+    "playtest": "node --import ./tools/playtest/resolve-ts.mjs tools/playtest/run.mjs"
   },
   "devDependencies": {
     "typescript": "7.0.2",

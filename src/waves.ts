@@ -1,4 +1,10 @@
-import { ENEMIES, type Difficulty, type WaveCurve, type WaveGroup } from './config';
+import {
+  ENEMIES,
+  type Difficulty,
+  type EnemyStats,
+  type WaveCurve,
+  type WaveGroup,
+} from './config';
 import type { EnemyType } from './sim';
 
 const MIN_GAP_STEPS = 2;
@@ -41,10 +47,14 @@ function waveRoster(wave: number, curve: WaveCurve): Roster {
   ];
 }
 
-export function buildWave(wave: number, difficulty: Difficulty): WaveGroup[] {
+export function buildWave(
+  wave: number,
+  difficulty: Difficulty,
+  enemies: Record<EnemyType, EnemyStats> = ENEMIES,
+): WaveGroup[] {
   const curve = difficulty.curve;
   const roster = waveRoster(wave, curve);
-  const weight = roster.reduce((sum, [type, count]) => sum + ENEMIES[type].hp * count, 0);
+  const weight = roster.reduce((sum, [type, count]) => sum + enemies[type].hp * count, 0);
   const scale = (waveBudget(wave, curve) * difficulty.healthScale) / weight;
   const gapSteps = Math.max(
     MIN_GAP_STEPS,
@@ -54,14 +64,17 @@ export function buildWave(wave: number, difficulty: Difficulty): WaveGroup[] {
     type,
     count,
     gapSteps: type === 'boss' ? 0 : gapSteps,
-    hp: Math.max(1, Math.round(ENEMIES[type].hp * scale)),
+    hp: Math.max(1, Math.round(enemies[type].hp * scale)),
   }));
 }
 
-export function buildWaves(difficulty: Difficulty): WaveGroup[][] {
+export function buildWaves(
+  difficulty: Difficulty,
+  enemies: Record<EnemyType, EnemyStats> = ENEMIES,
+): WaveGroup[][] {
   const waves: WaveGroup[][] = [];
   for (let wave = 1; wave <= difficulty.curve.waves; wave += 1) {
-    waves.push(buildWave(wave, difficulty));
+    waves.push(buildWave(wave, difficulty, enemies));
   }
   return waves;
 }

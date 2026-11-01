@@ -55,6 +55,7 @@ npm run dev
 npm test
 npm run typecheck
 npm run build
+npm run playtest -- --job tools/playtest/jobs/smoke.json --out playtest-out/smoke.jsonl
 ```
 
 `npm run build` type-checks the project and writes a static site to `dist/`.

@@ -62,6 +62,23 @@ export const ENEMIES: Record<EnemyType, EnemyStats> = {
   boss: { hp: 900, speed: 0.07, bounty: 0, leak: 20 },
 };
 
+// Every game value the sim reads. Balance sweeps pass their own; the game uses DEFAULT_RULES.
+export interface Rules {
+  towers: Record<TowerType, TowerStats>;
+  enemies: Record<EnemyType, EnemyStats>;
+  chordBonusPerTower: number;
+  chordMaxTowers: number;
+  sellRefund: number;
+}
+
+export const DEFAULT_RULES: Rules = {
+  towers: TOWERS,
+  enemies: ENEMIES,
+  chordBonusPerTower: CHORD_BONUS_PER_TOWER,
+  chordMaxTowers: CHORD_MAX_TOWERS,
+  sellRefund: SELL_REFUND,
+};
+
 export interface WaveGroup {
   type: EnemyType;
   count: number;
