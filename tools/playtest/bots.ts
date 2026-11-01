@@ -54,6 +54,9 @@ export interface GameResult {
   chordAverage: number;
   chordCappedShare: number;
   idleNoteShare: number;
+  bossDamageByWave: Record<string, number>;
+  bossKills: number[];
+  finalBossWave: number;
 }
 
 const TOWER_ORDER: TowerType[] = ['kick', 'hat', 'synth'];
@@ -191,15 +194,28 @@ export function playGame(
   let chordCapped = 0;
   let notes = 0;
   let idleNotes = 0;
+  const bossIds = new Set<number>();
+  const bossDamageByWave: Record<string, number> = {};
+  const bossKills: number[] = [];
 
   while (sim.phase !== 'won' && sim.phase !== 'lost') {
     bot.build(ctx);
     if (sim.phase === 'build') sim.startWave();
     while (sim.phase === 'wave') {
       if (bot.onBar && sim.totalSteps % STEPS_PER_BAR === 0) bot.onBar(ctx);
-      for (const event of sim.step()) {
+      const events = sim.step();
+      for (const enemy of sim.enemies) {
+        if (enemy.type === 'boss') bossIds.add(enemy.id);
+      }
+      for (const event of events) {
         if (event.kind === 'hit') {
           damageByType[event.towerType] += event.damage;
+          if (bossIds.has(event.enemyId)) {
+            const key = String(sim.wave);
+            bossDamageByWave[key] = (bossDamageByWave[key] ?? 0) + event.damage;
+          }
+        } else if (event.kind === 'kill' && event.enemyType === 'boss') {
+          bossKills.push(sim.wave);
         } else if (event.kind === 'shot') {
           shots += 1;
           chordTotal +=
@@ -220,6 +236,11 @@ export function playGame(
   const mix: Record<TowerType, number> = { kick: 0, hat: 0, synth: 0 };
   for (const tower of sim.towers) mix[tower.type] += 1;
 
+  let finalBossWave = 0;
+  sim.waves.forEach((groups, index) => {
+    if (groups.some((group) => group.type === 'boss')) finalBossWave = index + 1;
+  });
+
   return {
     result: sim.phase,
     wave: sim.wave,
@@ -234,5 +255,8 @@ export function playGame(
     chordAverage: shots === 0 ? 0 : chordTotal / shots,
     chordCappedShare: shots === 0 ? 0 : chordCapped / shots,
     idleNoteShare: notes === 0 ? 0 : idleNotes / notes,
+    bossDamageByWave,
+    bossKills,
+    finalBossWave,
   };
 }

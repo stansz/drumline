@@ -94,6 +94,13 @@ npm run playtest -- --job tools/playtest/jobs/smoke.json --out playtest-out/smok
 - `tools/playtest/bound.ts` works out the most damage any static board can deal to a boss.
 - A new bot implements `Bot` from `tools/playtest/bots.ts`, and takes randomness only from
   `ctx.rng`.
+- `npm run playtest:report` summarizes a JSONL file. Add `--compare <before.jsonl>` for a
+  before-and-after table.
+- `tools/playtest/targets.ts` holds the balance targets a script can check.
+- `npm run playtest:sweep` tries each value of one setting, checks every value against the
+  targets, and writes `proposal.md` and `proposal.json`. A sweep file sets `id`, `setting`,
+  `values`, `games`, and `seed`. The proposal is the passing value with the largest worst-case
+  margin across the targets.
 
 ## Saved settings
 

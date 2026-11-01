@@ -9,7 +9,9 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
-    "playtest": "node --import ./tools/playtest/resolve-ts.mjs tools/playtest/run.mjs"
+    "playtest": "node --import ./tools/playtest/resolve-ts.mjs tools/playtest/run.mjs",
+    "playtest:report": "node --import ./tools/playtest/resolve-ts.mjs tools/playtest/report-cli.mjs",
+    "playtest:sweep": "node --import ./tools/playtest/resolve-ts.mjs tools/playtest/sweep.mjs"
   },
   "devDependencies": {
     "typescript": "7.0.2",

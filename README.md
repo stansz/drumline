@@ -56,6 +56,8 @@ npm test
 npm run typecheck
 npm run build
 npm run playtest -- --job tools/playtest/jobs/smoke.json --out playtest-out/smoke.jsonl
+npm run playtest:report -- --in playtest-out/smoke.jsonl
+npm run playtest:sweep -- --sweep tools/playtest/sweeps/boss-cap.json --out playtest-out/boss-cap
 ```
 
 `npm run build` type-checks the project and writes a static site to `dist/`.

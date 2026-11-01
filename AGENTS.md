@@ -3,7 +3,8 @@
 DrumlineTD is a browser tower defense game where the towers play a 16-step sequencer. It uses
 TypeScript, Vite, Canvas, and Web Audio, with no framework or runtime dependencies.
 
-Commands: `npm run dev`, `npm test`, `npm run typecheck`, `npm run build`, `npm run playtest`.
+Commands: `npm run dev`, `npm test`, `npm run typecheck`, `npm run build`, `npm run playtest`,
+`npm run playtest:report`, `npm run playtest:sweep`.
 Pushing to `main` deploys to GitHub Pages, and a failing test blocks the deploy.
 
 ## Read before changing
@@ -19,6 +20,10 @@ Pushing to `main` deploys to GitHub Pages, and a failing test blocks the deploy.
 - In `src/sim.ts`, read tower, enemy, chord, and refund values from `this.rules`, not the config
   constants, so balance sweeps can change them per game.
 - Keep `tools/playtest/` free of browser APIs, and keep Node APIs in its `.mjs` files.
+- Don't give a `.mjs` and a `.ts` file in `tools/playtest/` the same base name. Vite resolves
+  `./name` to the `.mjs` file, while Node resolves it to the `.ts` file.
+- Playtest tools only write inside `playtest-out/` or their `--out` path. They never edit
+  `src/config.ts`. A person approves each proposal before it's applied.
 - Count game time in steps, never seconds, so speed can't change balance.
 - Themes change the sound only, never the tempo, tower timing, or balance.
 - `new Sim()` must stay on Hard with `autoWave` off, because bots and tests rely on that.

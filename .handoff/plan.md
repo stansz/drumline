@@ -1,35 +1,41 @@
-# Plan: playtest harness
+# Plan: boss health setting and sim-driven proposals
 
 ## Goal
 
-Build the headless harness for automated DrumlineTD playtesting. It runs thousands of seeded bot games in Node worker threads without a browser and writes one JSON line per game. Game values become injectable, so later balance sweeps can change them per game. A new test records the most damage any board can deal to each boss.
+Add a tool chain that turns playtest results into a reviewed proposal: summarize a run, check it against balance targets, sweep one setting, and write a proposal file. The first sweep is a new `bossHealthCap` setting.
 
-This changes no game value and no game behaviour. `new Sim()` must behave exactly as it does now. `tests/balance.test.ts` and `tests/bots.ts` stay unchanged.
+This does not change the game. `bossHealthCap` ships at a value too high to have any effect, and no tool may edit `src/config.ts`. A person applies an approved proposal later.
+
+Also fix three harness problems: `run.mjs` accepts bad arguments, `job.ts` caches settings by job id, and a comment in `bound.ts` overclaims.
 
 ## Files to touch
 
 Create:
 
-- `tools/playtest/resolve-ts.mjs`
-- `tools/playtest/rules.ts`
-- `tools/playtest/bots.ts`
-- `tools/playtest/bound.ts`
-- `tools/playtest/job.ts`
-- `tools/playtest/run.mjs`
-- `tools/playtest/same-lines.mjs`
-- `tools/playtest/jobs/smoke.json`
-- `tests/rules.test.ts`
-- `tests/playtest.test.ts`
-- `tests/boss-bound.test.ts`
+- `tools/playtest/args.mjs`
+- `tools/playtest/pool.mjs`
+- `tools/playtest/worker.mjs`
+- `tools/playtest/report.ts`
+- `tools/playtest/report.mjs`
+- `tools/playtest/targets.ts`
+- `tools/playtest/propose.ts`
+- `tools/playtest/sweep.mjs`
+- `tools/playtest/sweeps/boss-cap.json`
+- `tools/playtest/sweeps/smoke.json`
+- `tests/report.test.ts`
+- `tests/propose.test.ts`
 
 Modify:
 
 - `src/config.ts`
 - `src/waves.ts`
-- `src/sim.ts`
+- `tools/playtest/bots.ts`
+- `tools/playtest/bound.ts`
+- `tools/playtest/job.ts`
+- `tools/playtest/run.mjs`
+- `tests/waves.test.ts`
+- `tests/playtest.test.ts`
 - `package.json`
-- `tsconfig.json`
-- `.gitignore`
 - `AGENTS.md`
 - `README.md`
 - `docs/references.md`
@@ -37,514 +43,509 @@ Modify:
 
 ## Steps
 
-### 1. Add `Rules` to `src/config.ts`
+### 1. Add `bossHealthCap`
 
-Add this directly after the `ENEMIES` constant:
+In `src/config.ts`:
 
-```ts
-// Every game value the sim reads. Balance sweeps pass their own; the game uses DEFAULT_RULES.
-export interface Rules {
-  towers: Record<TowerType, TowerStats>;
-  enemies: Record<EnemyType, EnemyStats>;
-  chordBonusPerTower: number;
-  chordMaxTowers: number;
-  sellRefund: number;
-}
+- Add `bossHealthCap: number;` to `WaveCurve`, directly after `bossBudget: number;`.
+- Add `bossHealthCap: 1000000,` to `WAVE_CURVE`, directly after `bossBudget: 1,`.
 
-export const DEFAULT_RULES: Rules = {
-  towers: TOWERS,
-  enemies: ENEMIES,
-  chordBonusPerTower: CHORD_BONUS_PER_TOWER,
-  chordMaxTowers: CHORD_MAX_TOWERS,
-  sellRefund: SELL_REFUND,
-};
-```
-
-Do not remove or rename any existing export. `src/main.ts` and `src/render.ts` keep using the constants.
-
-### 2. Pass enemy stats through `src/waves.ts`
-
-- Add `EnemyStats` to the type imports from `./config`.
-- Change the signatures to:
+In `src/waves.ts`, replace the `return roster.map(...)` statement in `buildWave` with:
 
 ```ts
-export function buildWave(
-  wave: number,
-  difficulty: Difficulty,
-  enemies: Record<EnemyType, EnemyStats> = ENEMIES,
-): WaveGroup[] {
+  const bossCap = Math.round(curve.bossHealthCap * difficulty.healthScale);
+  return roster.map(([type, count]) => {
+    const hp = Math.max(1, Math.round(enemies[type].hp * scale));
+    return {
+      type,
+      count,
+      gapSteps: type === 'boss' ? 0 : gapSteps,
+      hp: type === 'boss' ? Math.min(hp, bossCap) : hp,
+    };
+  });
 ```
+
+Keep the existing `gapSteps` constant above it.
+
+### 2. Record boss results in `tools/playtest/bots.ts`
+
+Add these fields to `GameResult`, directly after `idleNoteShare`:
 
 ```ts
-export function buildWaves(
-  difficulty: Difficulty,
-  enemies: Record<EnemyType, EnemyStats> = ENEMIES,
-): WaveGroup[][] {
+  bossDamageByWave: Record<string, number>;
+  bossKills: number[];
+  finalBossWave: number;
 ```
 
-- Inside `buildWave`, replace both uses of `ENEMIES[type].hp` with `enemies[type].hp`.
-- In `buildWaves`, pass `enemies` to `buildWave`.
+In `playGame`:
 
-### 3. Read rules in `src/sim.ts`
-
-- In the `./config` import, remove `CHORD_BONUS_PER_TOWER`, `CHORD_MAX_TOWERS`, `ENEMIES`, `SELL_REFUND`, and `TOWERS`. Add `DEFAULT_RULES` and `type Rules`.
-- Add `readonly rules: Rules;` to `Sim`, directly after `readonly difficulty: Difficulty;`.
-- Change the constructor to:
+- Add `const bossIds = new Set<number>();`, `const bossDamageByWave: Record<string, number> = {};`, and `const bossKills: number[] = [];` beside the other counters.
+- Replace `for (const event of sim.step()) {` with:
 
 ```ts
-  constructor(difficulty: Difficulty = DIFFICULTIES.hard, rules: Rules = DEFAULT_RULES) {
-    this.difficulty = difficulty;
-    this.rules = rules;
-    this.waves = buildWaves(difficulty, rules.enemies);
+      const events = sim.step();
+      for (const enemy of sim.enemies) {
+        if (enemy.type === 'boss') bossIds.add(enemy.id);
+      }
+      for (const event of events) {
 ```
 
-  Keep the rest of the constructor as it is.
-
-- Replace each remaining use:
-
-| Old | New |
-| --- | --- |
-| `TOWERS[type].cost` in `placeTower` | `this.rules.towers[type].cost` |
-| `TOWERS[tower.type].cost * SELL_REFUND` in `sellTower` | `this.rules.towers[tower.type].cost * this.rules.sellRefund` |
-| `CHORD_BONUS_PER_TOWER` in `fireTowers` | `this.rules.chordBonusPerTower` |
-| `CHORD_MAX_TOWERS` in `fireTowers` | `this.rules.chordMaxTowers` |
-| `TOWERS[tower.type]` in `fireTowers` | `this.rules.towers[tower.type]` |
-| `ENEMIES[enemy.type].bounty` in `step` | `this.rules.enemies[enemy.type].bounty` |
-| `ENEMIES[enemy.type].speed` in `step` | `this.rules.enemies[enemy.type].speed` |
-| `ENEMIES[enemy.type].leak` in `step` | `this.rules.enemies[enemy.type].leak` |
-
-- In the `SimEvent` type, change the `hit` member to:
+- In the `hit` branch, after adding to `damageByType`, add:
 
 ```ts
-  | {
-      kind: 'hit';
-      x: number;
-      y: number;
-      towerType: TowerType;
-      enemyId: number;
-      damage: number;
-    }
+          if (bossIds.has(event.enemyId)) {
+            const key = String(sim.wave);
+            bossDamageByWave[key] = (bossDamageByWave[key] ?? 0) + event.damage;
+          }
 ```
 
-- Add `damage` to all four `kind: 'hit'` pushes in `fireTowers`:
-  - kick: `damage: baseDamage`
-  - synth target: `damage: baseDamage`
-  - synth chain: `damage: baseDamage * 0.5`
-  - hat: `damage: baseDamage`
+- Add a branch: when `event.kind === 'kill'` and `event.enemyType === 'boss'`, push `sim.wave` to `bossKills`.
+- Before the `return`, work out the last boss wave:
 
-Change nothing else in `src/sim.ts`. The chain falloff of `0.5` and chain gap of `2` stay as literals.
-
-### 4. Project setup
-
-- In `package.json`, add this script after `"build"`:
-
-```json
-"playtest": "node --import ./tools/playtest/resolve-ts.mjs tools/playtest/run.mjs"
+```ts
+  let finalBossWave = 0;
+  sim.waves.forEach((groups, index) => {
+    if (groups.some((group) => group.type === 'boss')) finalBossWave = index + 1;
+  });
 ```
 
-- In `tsconfig.json`, change `"include"` to `["src","tests","tools","vite.config.ts"]`. Change nothing else.
-- In `.gitignore`, add a line: `playtest-out/`.
+- Add the three new fields to the returned object.
 
-### 5. Create `tools/playtest/resolve-ts.mjs`
+### 3. Fix `tools/playtest/job.ts`
 
-Node strips TypeScript types on its own, but needs this hook for extensionless imports.
+- Replace the `resolvedJobs` `Map` with `const resolvedJobs = new WeakMap<Job, Resolved>();`. `resolveJob` keeps its logic, now keyed by the job object, so two jobs that share an `id` can never share settings.
+- Export the record type:
+
+```ts
+export type GameRecord = {
+  job: string;
+  difficulty: DifficultyId;
+  index: number;
+  config: string;
+  seed: number;
+  policy: Policy;
+} & GameResult;
+```
+
+- Import `type GameResult` and `type Policy` from `./bots`.
+- In `runGame`, add `difficulty: job.difficulty,` directly after `job: job.id,`.
+
+### 4. Correct the comment in `tools/playtest/bound.ts`
+
+Replace the first four comment lines with:
+
+```ts
+// A close estimate of the most damage a static board can deal to a boss. It is generous: every
+// earlier enemy pays its bounty, nothing is spent on earlier waves, every shot gets the capped
+// chord bonus, and no shot goes to another enemy. It leaves out three small effects: synth chains
+// and kick splash that reach the boss through a runner, and bounties from the boss's own wave.
+```
+
+### 5. Create `tools/playtest/args.mjs`
 
 ```js
-// Lets Node run the game's TypeScript directly, where imports have no file extension.
-import { registerHooks } from 'node:module';
-
-registerHooks({
-  resolve(specifier, context, next) {
-    if (specifier.startsWith('.') && !/\.[cm]?[jt]s$/.test(specifier)) {
-      return next(`${specifier}.ts`, context);
+// Strict flag parsing, so a mistyped flag stops the run instead of being ignored.
+export function parseFlags(argv, allowed) {
+  const flags = {};
+  for (let i = 0; i < argv.length; i += 2) {
+    const flag = argv[i];
+    const value = argv[i + 1];
+    if (!flag?.startsWith('--') || !allowed.includes(flag.slice(2))) {
+      throw new Error(`unknown argument: ${flag}`);
     }
-    return next(specifier, context);
-  },
-});
+    if (value === undefined || value.startsWith('--')) {
+      throw new Error(`missing value for ${flag}`);
+    }
+    flags[flag.slice(2)] = value;
+  }
+  return flags;
+}
+
+export function parseCount(flags, name, fallback) {
+  if (flags[name] === undefined) return fallback;
+  const value = Number(flags[name]);
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(`--${name} must be a whole number`);
+  }
+  return value;
+}
 ```
 
-### 6. Create `tools/playtest/rules.ts`
+### 6. Move the worker pool out of `run.mjs`
 
-Import from `../../src/config`. Extensionless relative imports are fine in every `.ts` file under `tools/`. Do not import any `node:` module from a `.ts` file, because the project has no Node types. All Node API use stays in the `.mjs` files.
+Create `tools/playtest/worker.mjs`:
 
-Export:
+```js
+import { parentPort, workerData } from 'node:worker_threads';
+import { runGame } from './job.ts';
 
-```ts
-export interface RulesPatch {
-  towers?: Partial<Record<TowerType, Partial<TowerStats>>>;
-  enemies?: Partial<Record<EnemyType, Partial<EnemyStats>>>;
-  chordBonusPerTower?: number;
-  chordMaxTowers?: number;
-  sellRefund?: number;
-}
-
-export interface DifficultyPatch {
-  startMoney?: number;
-  startLives?: number;
-  waveBonus?: number;
-  healthScale?: number;
-  curve?: Partial<WaveCurve>;
-}
-
-export function resolveRules(patch?: RulesPatch): Rules;
-export function resolveDifficulty(id: DifficultyId, patch?: DifficultyPatch): Difficulty;
-export function configHash(rules: Rules, difficulty: Difficulty): string;
-```
-
-- `resolveRules` returns a new object with new `towers` and `enemies` records and new stat objects, merged over `DEFAULT_RULES`. It must never mutate `TOWERS` or `ENEMIES`.
-- `resolveDifficulty` returns a new object merged over `DIFFICULTIES[id]`, with `curve` merged over that difficulty's `curve`.
-- `configHash` is FNV-1a 32-bit over `JSON.stringify({ rules, difficulty })`, returned as 8 lowercase hex characters.
-
-### 7. Create `tools/playtest/bots.ts`
-
-Import `Sim`, `pathCells`, `type Phase`, and `type TowerType` from `../../src/sim`. Import `GRID_COLS`, `GRID_ROWS`, `STEPS_PER_BAR`, and the needed types from `../../src/config`.
-
-Export:
-
-```ts
-export type Rng = () => number;
-
-export function makeRng(seed: number): Rng {
-  return () => {
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-export interface BotContext {
-  sim: Sim;
-  rng: Rng;
-}
-
-// All bot randomness comes from ctx.rng, because the sim has none.
-export interface Bot {
-  build(ctx: BotContext): void;
-  onBar?(ctx: BotContext): void;
-}
-
-export interface Policy {
-  weights: Record<TowerType, number>;
-  // Bit n allows columns where col % 4 === n. 15 allows every column.
-  classMask: number;
-  midWave: boolean;
-  earlyBias: number;
-  // Picks at random among this many best cells. 1 always takes the best.
-  topK: number;
-  maxTowersPerWave: number | null;
-}
-
-export interface GameResult {
-  result: Phase;
-  wave: number;
-  lives: number;
-  money: number;
-  towers: number;
-  steps: number;
-  mix: Record<TowerType, number>;
-  livesByWave: number[];
-  damageByType: Record<TowerType, number>;
-  shots: number;
-  chordAverage: number;
-  chordCappedShare: number;
-  idleNoteShare: number;
-}
-
-export function randomPolicy(rng: Rng): Policy;
-export function policyBot(policy: Policy, rules: Rules): Bot;
-export function playGame(bot: Bot, difficulty: Difficulty, rules: Rules, seed: number): GameResult;
-```
-
-`randomPolicy` builds its fields in this order:
-
-- `weights.kick`, `weights.hat`, `weights.synth`: each is `rng() < 0.25 ? 0 : rng()`. If all three are 0, set `weights.hat` to 1.
-- `classMask`: `rng() < 0.5 ? 15 : 1 + Math.floor(rng() * 15)`
-- `midWave`: `rng() < 0.5`
-- `earlyBias`: `rng() < 0.5 ? 0 : rng() * 3`
-- `topK`: `1 + Math.floor(rng() * 3)`
-- `maxTowersPerWave`: `rng() < 0.25 ? 1 + Math.floor(rng() * 3) : null`
-
-`policyBot` precomputes a coverage table when created. `coverage[type][col][row]` is the number of `pathCells()` entries with `Math.hypot(pathCol - col, pathRow - row) <= rules.towers[type].range`. It keeps a `placedThisWave` counter, which `build` resets to 0 before spending. `build` always spends. `onBar` exists on the returned object and spends only when `policy.midWave` is true.
-
-Spending repeats these steps until one of them stops it:
-
-1. Stop if `maxTowersPerWave` is not null and `placedThisWave` has reached it.
-2. Choose a type:
-
-```ts
-const total = weights.kick + weights.hat + weights.synth;
-let best: TowerType = 'hat';
-let bestDeficit = -Infinity;
-for (const type of ['kick', 'hat', 'synth'] as const) {
-  if (weights[type] === 0) continue;
-  const have = sim.towers.filter((tower) => tower.type === type).length;
-  const deficit = (weights[type] / total) * (sim.towers.length + 1) - have;
-  if (deficit > bestDeficit) {
-    bestDeficit = deficit;
-    best = type;
+const { job, start, end } = workerData;
+let lines = [];
+for (let index = start; index < end; index += 1) {
+  lines.push(runGame(job, index));
+  if ((index - start + 1) % 100 === 0) {
+    parentPort.postMessage(lines.join('\n') + '\n');
+    lines = [];
   }
 }
+if (lines.length > 0) parentPort.postMessage(lines.join('\n') + '\n');
 ```
 
-3. Stop if `sim.money` is below that type's cost.
-4. Score each cell, looping `col` from 0 and `row` from 0, skipping columns where `(classMask >> (col % 4)) & 1` is 0 and cells where `sim.canPlace` is false:
+Create `tools/playtest/pool.mjs`, exporting `runJob({ job, out, workers, start, end })`. It returns a `Promise` resolving to `{ games, workers, seconds }`. Move the range splitting, output file handling, and worker events from `run.mjs` unchanged, with these differences:
 
-```ts
-coverage[type][col][row] - earlyBias * (row + (row > 2 ? col * 0.2 : 0))
-```
+- Start each worker with `new Worker(new URL('./worker.mjs', import.meta.url), { workerData: { job, start, end } })`.
+- A worker `error` event closes the file and rejects the promise.
+- `workers` in the result is the number of ranges started, and `seconds` is a number.
+- It never prints and never calls `process.exit`.
 
-5. Stop if there are no cells. With `topK` of 1, take the first cell holding the highest score, without calling `ctx.rng`. Otherwise stable-sort by score, highest first, and take index `Math.floor(ctx.rng() * Math.min(topK, cells.length))`.
-6. Call `sim.placeTower`. Stop if it returns false. Otherwise add 1 to `placedThisWave`.
+Rewrite `tools/playtest/run.mjs` as a command-line wrapper:
 
-`playGame` runs exactly this loop:
-
-```ts
-const sim = new Sim(difficulty, rules);
-const ctx: BotContext = { sim, rng: makeRng(seed) };
-while (sim.phase !== 'won' && sim.phase !== 'lost') {
-  bot.build(ctx);
-  if (sim.phase === 'build') sim.startWave();
-  while (sim.phase === 'wave') {
-    if (bot.onBar && sim.totalSteps % STEPS_PER_BAR === 0) bot.onBar(ctx);
-    // tally sim.step() here
-    if (sim.totalSteps >= MAX_STEPS) throw new Error(`game exceeded ${MAX_STEPS} steps`);
-  }
-  livesByWave.push(sim.lives);
-}
-```
-
-`MAX_STEPS` is `200000`. Tally the events from each `sim.step()`:
-
-- `hit`: add `event.damage` to `damageByType[event.towerType]`.
-- `shot`: add 1 to `shots`. Add `1 + rules.chordBonusPerTower * (Math.min(event.chordSize, rules.chordMaxTowers) - 1)` to a running total. Count it as capped when `event.chordSize >= rules.chordMaxTowers`.
-- `note`: count it, and count it again as idle when `event.hit` is false.
-
-`chordAverage` is the running total divided by `shots`. `chordCappedShare` is capped shots divided by `shots`. `idleNoteShare` is idle notes divided by all notes. Each is 0 when its divisor is 0. `mix` counts `sim.towers` by type at the end of the game.
-
-### 8. Create `tools/playtest/bound.ts`
-
-Import `firesThisStep`, `pathCells`, `pathLength`, `pathPoint`, and `type TowerType` from `../../src/sim`. Import `buildWaves` from `../../src/waves`. Import `GRID_COLS`, `GRID_ROWS`, `STEPS_PER_BAR`, and the needed types from `../../src/config`.
-
-Start the file with this comment:
-
-```ts
-// The most damage any static board can deal to a boss. It is generous on purpose: every earlier
-// enemy pays its bounty, nothing is spent on earlier waves, every shot gets the capped chord
-// bonus, and no shot goes to another enemy. A boss above this limit can't be killed by a
-// static board.
-```
-
-Export:
-
-```ts
-export interface BossBound {
-  wave: number;
-  bossHp: number;
-  income: number;
-  boardDamage: number;
-  picks: Record<TowerType, number>;
-  fullBoardDamage: number;
-}
-
-export function bossWaves(difficulty: Difficulty): number[];
-export function maxIncomeBefore(wave: number, difficulty: Difficulty, rules: Rules): number;
-export function towerBossDamage(type: TowerType, col: number, row: number, rules: Rules): number;
-export function bossBound(wave: number, difficulty: Difficulty, rules: Rules): BossBound;
-```
-
-- `bossWaves` returns each wave number whose groups in `buildWaves(difficulty)` include a `boss`.
-- `maxIncomeBefore` starts at `difficulty.startMoney`. For each wave from 1 to `wave - 1`, it adds `rules.enemies[group.type].bounty * group.count` for each group, plus `difficulty.waveBonus`. Wave groups come from `buildWaves(difficulty, rules.enemies)`.
-- `towerBossDamage` walks the boss exactly as the sim does: `progress` and `step` start at 0. While `progress < pathLength()`, if `firesThisStep(type, col, step % STEPS_PER_BAR)` and the boss at `pathPoint(progress)` is within the tower's range, add `damage * (1 + chordBonusPerTower * (chordMaxTowers - 1))`. Then add `rules.enemies.boss.speed` to `progress` and 1 to `step`.
-- `bossBound` lists every cell that is in the grid and not in `pathCells()`, with its damage for each tower type.
-  - `fullBoardDamage` sums each cell's highest damage across the three types, ignoring money.
-  - `boardDamage` is an exact multiple-choice knapsack: at most one tower per cell, budget `income`. Use the greatest common divisor of the three tower costs as the unit, with capacity `Math.floor(income / unit)`. Use a `Float64Array` for best damage, and keep one `Int8Array` per cell recording the chosen type so `picks` can be read back.
-  - `bossHp` is the `boss` group's `hp` for that wave.
-
-### 9. Create `tools/playtest/job.ts`
-
-Export:
-
-```ts
-export interface Job {
-  id: string;
-  difficulty: DifficultyId;
-  seed: number;
-  games: number;
-  rules?: RulesPatch;
-  difficultyPatch?: DifficultyPatch;
-}
-
-export function gameSeed(job: Job, index: number): number;
-export function runGame(job: Job, index: number): string;
-```
-
-- `gameSeed` returns `(job.seed + Math.imul(index, 0x9e3779b1)) | 0`.
-- `runGame` resolves the rules and difficulty, then does this:
-
-```ts
-const seed = gameSeed(job, index);
-const policy = randomPolicy(makeRng(seed));
-const result = playGame(policyBot(policy, rules), difficulty, rules, seed ^ 0x5bd1e995);
-```
-
-It returns `JSON.stringify` of an object with these keys, in this order: `job`, `index`, `config`, `seed`, `policy`, then every `GameResult` field. `job` is `job.id`, and `config` is `configHash(rules, difficulty)`. Do not include a timestamp or any other value that changes between runs.
-
-Resolve rules and difficulty once per job, not once per game. Cache them in a module-level `Map` keyed by `job.id`.
-
-### 10. Create `tools/playtest/run.mjs`
-
-This is plain JavaScript and imports `./job.ts` by its full name.
-
-Arguments: `--job <path>` and `--out <path>` are required. `--workers <n>` defaults to `os.availableParallelism()`. `--start <i>` defaults to 0, and `--end <j>` defaults to `job.games`. Exit 1 with a usage message on stderr if a required argument is missing.
-
-Main thread:
-
-- Read and parse the job file.
-- Create the output's parent directory with `mkdirSync(..., { recursive: true })`, and open the output with `openSync(path, 'w')`.
-- Split `[start, end)` into `workers` contiguous ranges of near-equal size, skipping empty ranges.
-- Start one `new Worker(fileURLToPath(import.meta.url), { workerData: { job, start, end } })` per range. Workers inherit `--import` by default, so do not pass `execArgv`.
-- On each `message`, a string of complete lines, call `writeSync` on the output.
-- On a worker `error` event, print the error to stderr and call `process.exit(1)`.
-- When all workers have exited, close the file and print exactly one line to stdout:
+- Parse with `parseFlags(process.argv.slice(2), ['job', 'out', 'workers', 'start', 'end'])`.
+- `--job` and `--out` are required.
+- `workers` is `parseCount(flags, 'workers', availableParallelism())`, and must be at least 1.
+- `start` is `parseCount(flags, 'start', 0)`, and `end` is `parseCount(flags, 'end', job.games)`.
+- Require `start <= end` and `end <= job.games`.
+- For any argument error, print the message and the usage line to stderr, then exit 1.
+- On success, print exactly the same line as now:
 
 ```text
 games=<n> workers=<n> seconds=<s.s> gamesPerSecond=<n>
 ```
 
-Worker thread, when `isMainThread` is false: for each index in its range, call `runGame`, collect lines, and `parentPort.postMessage(lines.join('\n') + '\n')` every 100 games and at the end.
+- If `runJob` rejects, print the error to stderr and exit 1.
 
-### 11. Create `tools/playtest/same-lines.mjs`
+### 7. Create `tools/playtest/report.ts`
 
-`node tools/playtest/same-lines.mjs <first> <rest...>` compares the file `<first>` with the combined lines of every `<rest>` file. Read each file, split into non-empty lines, and sort both lists. If they match, print `same <line count>` and exit 0. Otherwise print `different` and exit 1.
+Export:
 
-### 12. Create `tools/playtest/jobs/smoke.json`
+```ts
+export interface Summary {
+  config: string;
+  difficulty: DifficultyId;
+  games: number;
+  wins: number;
+  winRate: number;
+  cleanWinRate: number;
+  waveP10: number;
+  waveP50: number;
+  waveP90: number;
+  deathsByWave: Record<string, number>;
+  damageShare: Record<TowerType, number>;
+  meanChordAverage: number;
+  meanIdleNoteShare: number;
+  finalBossWave: number;
+  bestFinalBossDamage: number;
+}
+
+export function summarize(records: GameRecord[]): Summary;
+export function formatSummary(summary: Summary): string;
+export function formatComparison(before: Summary, after: Summary): string;
+```
+
+`summarize` throws if `records` is empty, or if the records hold more than one `config` value.
+
+- `wins` counts `result === 'won'`, and `winRate` is `wins / games`.
+- `cleanWinRate` is the share of wins where `bossKills` includes `finalBossWave`. It is 0 with no wins.
+- `waveP10`, `waveP50`, and `waveP90` come from the sorted `wave` values, at index `Math.floor(q * (games - 1))`.
+- `deathsByWave` counts lost games by `wave`, keyed by `String(wave)`.
+- `damageShare` is each type's total `damageByType` over all games, divided by the total for all types. All are 0 when the total is 0.
+- `meanChordAverage` and `meanIdleNoteShare` are plain means across games.
+- `finalBossWave` is taken from the first record.
+- `bestFinalBossDamage` is the highest `bossDamageByWave[String(finalBossWave)]`, treating a missing value as 0.
+
+`formatSummary` returns a Markdown table with columns `Measure` and `Value`, and one row each for games, win rate, clean win rate, the three wave percentiles, best final boss damage, and the three damage shares. Show rates and shares as percentages to 1 decimal place, and damage as whole numbers.
+
+`formatComparison` returns a Markdown table with columns `Measure`, `Before`, and `After`, using the same rows and formatting.
+
+### 8. Create `tools/playtest/report.mjs`
+
+Arguments: `--in <path>` is required, and `--compare <path>` is optional. Parse with `parseFlags`. Read each file as JSONL into `GameRecord` objects, skipping empty lines.
+
+Without `--compare`, print `formatSummary(summarize(records))`. With `--compare`, treat the `--compare` file as before and the `--in` file as after, and print `formatComparison`. For any error, print it to stderr and exit 1.
+
+### 9. Create `tools/playtest/targets.ts`
+
+```ts
+export type Metric = 'winRate' | 'cleanWinRate' | 'bossBoundShare' | 'bossBotShare';
+
+export interface Target {
+  id: string;
+  difficulty: DifficultyId;
+  metric: Metric;
+  min?: number;
+  max?: number;
+}
+
+// Random policies stand in for strong play until the strategy search exists, so these targets
+// only support coarse changes.
+export const TARGETS: Target[] = [
+  { id: 'hard-bots-lose', difficulty: 'hard', metric: 'winRate', max: 0.01 },
+  { id: 'hard-boss-killable', difficulty: 'hard', metric: 'bossBoundShare', max: 0.9 },
+  { id: 'hard-bots-fall-short', difficulty: 'hard', metric: 'bossBotShare', max: 0.95 },
+  { id: 'easy-bots-win', difficulty: 'easy', metric: 'winRate', min: 0.4 },
+  { id: 'easy-clean-wins', difficulty: 'easy', metric: 'cleanWinRate', min: 0.5 },
+  { id: 'easy-boss-killable', difficulty: 'easy', metric: 'bossBoundShare', max: 0.9 },
+];
+
+export interface TargetCheck {
+  id: string;
+  difficulty: DifficultyId;
+  metric: Metric;
+  value: number;
+  min: number | null;
+  max: number | null;
+  pass: boolean;
+  margin: number;
+}
+
+export function metricsFor(
+  summary: Summary,
+  difficulty: Difficulty,
+  rules: Rules,
+): Record<Metric, number>;
+
+export function checkTarget(target: Target, value: number): TargetCheck;
+```
+
+`metricsFor`:
+
+- `winRate` and `cleanWinRate` come straight from `summary`.
+- Get `bound` from `bossBound(summary.finalBossWave, difficulty, rules)`.
+- `bossBoundShare` is `bound.bossHp / bound.boardDamage`.
+- `bossBotShare` is `Math.min(1, summary.bestFinalBossDamage / bound.bossHp)`.
+
+`checkTarget`:
+
+- With `min`, its margin is `(value - min) / min`.
+- With `max`, its margin is `(max - value) / max`.
+- With both, use the smaller.
+- `pass` is true when `margin >= 0`.
+- Store `null` for a missing `min` or `max`, so the result is valid JSON.
+
+### 10. Create `tools/playtest/propose.ts`
+
+Export:
+
+```ts
+export interface Sweep {
+  id: string;
+  setting: string;
+  values: number[];
+  games: number;
+  seed: number;
+}
+
+export interface SettingPatch {
+  rules?: RulesPatch;
+  difficultyPatch?: DifficultyPatch;
+}
+
+export interface Candidate {
+  value: number | null;
+  pass: boolean;
+  worstMargin: number;
+  checks: TargetCheck[];
+  summaries: Record<DifficultyId, Summary>;
+}
+
+export interface Proposal {
+  sweep: string;
+  setting: string;
+  currentValue: number;
+  proposed: number | null;
+  games: number;
+  seed: number;
+  candidates: Candidate[];
+}
+
+export function patchForSetting(setting: string, value: number): SettingPatch;
+export function currentSetting(setting: string, rules: Rules, difficulty: Difficulty): number;
+export function buildCandidate(
+  value: number | null,
+  summaries: Record<DifficultyId, Summary>,
+  resolved: Record<DifficultyId, { difficulty: Difficulty; rules: Rules }>,
+): Candidate;
+export function chooseValue(candidates: Candidate[]): number | null;
+export function formatProposal(proposal: Proposal): string;
+```
+
+`patchForSetting` and `currentSetting` support exactly these forms, and throw on anything else:
+
+| Setting | Meaning |
+| --- | --- |
+| `curve.<key>` | `difficultyPatch.curve[key]` |
+| `towers.<type>.<stat>` | `rules.towers[type][stat]` |
+| `enemies.<type>.<stat>` | `rules.enemies[type][stat]` |
+| `chordBonusPerTower`, `chordMaxTowers`, `sellRefund` | The matching `rules` value |
+
+`buildCandidate` runs `metricsFor` for each difficulty, then `checkTarget` for every entry in `TARGETS`, in order. `pass` is true when all checks pass. `worstMargin` is the smallest check margin.
+
+`chooseValue` ignores candidates with a null `value` and candidates that don't pass. It returns the `value` with the highest `worstMargin`, using the lowest `value` to break ties. It returns null if none remain.
+
+`formatProposal` returns Markdown in this order:
+
+1. A `# Proposal: <sweep>` heading.
+2. A line: `Set \`<setting>\` to <proposed> (now <currentValue>).`, or `No tested value meets every target.` when `proposed` is null.
+3. The line `Nothing has been changed. This needs a person's approval before it goes into \`src/config.ts\`.`
+4. A `## Candidates` table with columns `Value`, `Passes`, `Worst margin`, then one column per target id. The current config comes first, labelled `Current`. Show each target's value to 3 decimal places.
+5. When `proposed` is not null, a `## Before and after` section with a `formatComparison` table for each difficulty, comparing the current config with the proposed one.
+6. When `proposed` is not null, a `## To apply` section with the line: `Set \`<setting>\` to <proposed> in \`src/config.ts\`, run \`npm test\`, then update the results in \`docs/balance.md\`.`
+
+### 11. Create `tools/playtest/sweep.mjs`
+
+Arguments: `--sweep <path>` and `--out <dir>` are required. `--workers <n>` defaults to `availableParallelism()` and must be at least 1. Parse with `parseFlags` and `parseCount`. For any error, print it to stderr and exit 1.
+
+Run the candidates one at a time, in this order: the current config (`value: null`), then each entry in `sweep.values`.
+
+For each candidate, for each difficulty in `['hard', 'easy']`:
+
+- Build a `Job` with `id` `<sweep.id>-<difficulty>-<value or current>`, `difficulty`, `seed: sweep.seed`, and `games: sweep.games`. Add the fields from `patchForSetting(sweep.setting, value)` unless `value` is null.
+- Call `runJob` with `out` set to `<out>/<job id>.jsonl`.
+- Read that file back and call `summarize`.
+- Get `difficulty` and `rules` from `resolveDifficulty` and `resolveRules`.
+
+Then:
+
+- Call `buildCandidate`.
+- Get `currentValue` from `currentSetting` using Hard's default rules and difficulty.
+- Set `proposed` with `chooseValue`.
+- Write the `Proposal` to `<out>/proposal.json` with `JSON.stringify(proposal, null, 2) + '\n'`.
+- Write `formatProposal(proposal)` to `<out>/proposal.md`.
+- Print exactly one line: `proposal: <setting> = <proposed or none> (<out>/proposal.md)`.
+
+No tool may write outside `<out>`, and neither output file may contain a timestamp, duration, or worker count.
+
+### 12. Add the sweep files
+
+`tools/playtest/sweeps/boss-cap.json`:
 
 ```json
-{ "id": "smoke-hard", "difficulty": "hard", "seed": 1, "games": 200 }
+{
+  "id": "boss-cap",
+  "setting": "curve.bossHealthCap",
+  "values": [10000, 10500, 11000, 11500, 12000, 12500, 13000, 13500, 14000, 14500, 15000, 15500, 16000],
+  "games": 2000,
+  "seed": 11
+}
 ```
 
-### 13. Add the tests
+`tools/playtest/sweeps/smoke.json`:
 
-Create `tests/rules.test.ts`:
-
-- `DEFAULT_RULES.towers` is `TOWERS` and `DEFAULT_RULES.enemies` is `ENEMIES`, using `toBe`.
-- `new Sim().rules` is `DEFAULT_RULES`, using `toBe`.
-- `buildWaves(DIFFICULTIES.hard)` equals `buildWaves(DIFFICULTIES.hard, ENEMIES)`.
-- A `Sim` given `resolveRules({ towers: { kick: { cost: 10 } } })` charges 10 for a kick.
-- A `Sim` given `resolveRules({ sellRefund: 0.5 })` refunds `Math.floor(cost * 0.5)`.
-- A `Sim` given `resolveRules({ enemies: { blip: { hp: 60 } } })` builds waves with different blip health from the default.
-- `resolveRules({ towers: { kick: { damage: 99 } } })` leaves `TOWERS.kick.damage` at 12.
-- Hit damage: with one synth and three enemies pushed into `sim.enemies` close together in its range, stepping until it fires gives `hit` damages of 14, 7, and 7. Follow the setup style of `tests/attacks.test.ts`. Set `sim.phase = 'wave'` if the test needs it.
-- Chord damage: with two towers firing on the same step, each `hit` event's `damage` is 1.25 times that tower's base damage.
-
-Create `tests/playtest.test.ts`. Define `const base = (kick, hat, synth): Policy` with `classMask: 15`, `midWave: false`, `earlyBias: 0`, `topK: 1`, and `maxTowersPerWave: null`.
-
-- `playGame(policyBot(base(1, 1, 1), rules), hard, rules, 1)` gives `result` `lost`, `wave` 28, `towers` 56, and `mix` `{ kick: 19, hat: 19, synth: 18 }`.
-- The same on Easy gives `result` `won`, `lives` 10, `towers` 75, and `mix` `{ kick: 25, hat: 25, synth: 25 }`.
-- `base(0, 1, 0)` on Hard gives `result` `lost`, `wave` 25, and `towers` 70.
-- `runGame(job, 7)` called twice returns the same string.
-- `runGame(job, 7)` and `runGame(job, 8)` return different strings.
-- `resolveRules({ chordMaxTowers: 5 })` gives a different `configHash` from `resolveRules()`.
-- A policy with `topK: 5` gives different `towers` placements under two seeds. Compare by running `new Sim(DIFFICULTIES.hard)` through `bot.build` directly.
-- With `maxTowersPerWave: 1` and `midWave: true`, `result.towers` is at most `result.wave`.
-- For `base(1, 1, 1)` on Hard, every `damageByType` value is above 0, and `chordAverage` is between 1 and 1.75.
-
-Create `tests/boss-bound.test.ts`. In all of these, use `Math.round` on damage values.
-
-```ts
-const expected = [
-  ['hard', 10, 1862, 814, 6321],
-  ['hard', 20, 8350, 1879, 12056],
-  ['hard', 30, 29997, 3256, 16679],
-  ['easy', 10, 1303, 1044, 7691],
-  ['easy', 20, 5845, 2309, 13636],
-  ['easy', 30, 20998, 3886, 18247],
-] as const;
+```json
+{
+  "id": "smoke",
+  "setting": "curve.bossHealthCap",
+  "values": [12000, 14000],
+  "games": 40,
+  "seed": 11
+}
 ```
 
-- For each row of `[difficulty, wave, bossHp, income, boardDamage]`, `bossBound` returns those values.
-- `fullBoardDamage` rounds to 21487.
-- `bossWaves(DIFFICULTIES.hard)` equals `[10, 20, 30]`.
-- `boardDamage >= bossHp` for the wave 10 and wave 20 bosses on both difficulties, as ordinary `it` tests.
-- `it.fails('a full-income board can kill the wave 30 boss on hard', ...)` asserts `boardDamage >= bossHp`.
-- `it.fails('a full-income board can kill the wave 30 boss on easy', ...)` asserts the same.
-- `it.fails('a full board of synths beats hard', ...)` uses `new Sim({ ...DIFFICULTIES.hard, startMoney: 1e7 })`, places a synth on every cell where `canPlace` is true, starts waves until the game ends without any more placements, and asserts `sim.phase` is `won`.
+### 13. Add npm scripts
 
-Add this comment above the three `it.fails` tests:
+In `package.json`, add these after `"playtest"`:
 
-```ts
-// Known balance bug: these bosses can't be killed. Remove `.fails` when boss health is fixed.
+```json
+"playtest:report": "node --import ./tools/playtest/resolve-ts.mjs tools/playtest/report.mjs",
+"playtest:sweep": "node --import ./tools/playtest/resolve-ts.mjs tools/playtest/sweep.mjs"
 ```
 
-### 14. Update the docs
+### 14. Add the tests
+
+In `tests/waves.test.ts`, add a `describe('boss health cap', ...)` block:
+
+- `buildWave(30, DIFFICULTIES.hard)`'s boss has 29997 HP.
+- With `{ ...DIFFICULTIES.hard, curve: { ...WAVE_CURVE, bossHealthCap: 14000 } }`, wave 30's boss has 14000 HP, and its runners have the same HP as with the default curve.
+- The same cap on `DIFFICULTIES.easy` gives wave 30's boss 9800 HP.
+- That cap leaves wave 10's and wave 20's bosses unchanged on Hard.
+
+In `tests/playtest.test.ts`, add:
+
+- `playGame(policyBot(base(1, 1, 1), rules), DIFFICULTIES.hard, rules, 1)` has `bossKills` equal to `[10, 20]`, and `finalBossWave` of 30.
+- `bossDamageByWave['10']` in that result is at least 1862.
+- Two `Job` objects with the same `id`, one patching `difficultyPatch: { curve: { bossHealthCap: 1000 } }`, give different `config` values from `runGame`.
+
+Create `tests/report.test.ts`, using hand-built `GameRecord` objects:
+
+- `summarize` throws on an empty list.
+- `summarize` throws on mixed `config` values.
+- It works out `winRate`, `cleanWinRate`, percentiles, `deathsByWave`, `damageShare`, and `bestFinalBossDamage` correctly.
+- A win without the final boss in `bossKills` isn't counted as clean.
+- `formatComparison` output contains both the before and after win rates.
+
+Create `tests/propose.test.ts`:
+
+- `patchForSetting('curve.bossHealthCap', 14000)` gives `{ difficultyPatch: { curve: { bossHealthCap: 14000 } } }`.
+- `patchForSetting('towers.hat.damage', 4)` gives `{ rules: { towers: { hat: { damage: 4 } } } }`.
+- `patchForSetting('sellRefund', 0.5)` gives `{ rules: { sellRefund: 0.5 } }`.
+- `patchForSetting('nonsense', 1)` throws.
+- `currentSetting('curve.bossHealthCap', DEFAULT_RULES, DIFFICULTIES.hard)` is 1000000.
+- `checkTarget` passes a `max` target at or below `max`, and fails one above it, with the margin from the formula in step 9.
+- `checkTarget` does the same for a `min` target.
+- `chooseValue` picks the highest `worstMargin` among passing candidates, ignores failing candidates and the null-value candidate, breaks ties with the lowest value, and returns null when none pass.
+- `formatProposal` contains `Nothing has been changed` both with a proposal and without one. It contains `No tested value meets every target.` when `proposed` is null.
+
+### 15. Update the docs
 
 In `AGENTS.md`:
 
-- Add `npm run playtest` to the command list in the second paragraph.
-- Add these rules after the `Keep src/sim.ts free` rule:
+- Add `npm run playtest:report` and `npm run playtest:sweep` to the commands sentence.
+- Add this rule after the `tools/playtest/` rule:
 
 ```md
-- In `src/sim.ts`, read tower, enemy, chord, and refund values from `this.rules`, not the config
-  constants, so balance sweeps can change them per game.
-- Keep `tools/playtest/` free of browser APIs, and keep Node APIs in its `.mjs` files.
+- Playtest tools only write inside `playtest-out/` or their `--out` path. They never edit
+  `src/config.ts`. A person approves each proposal before it's applied.
 ```
 
-- Add this to the **Read before changing** list:
+In `README.md`, add these to the `## Commands` code block, after the existing playtest line:
 
-```md
-- Playtest harness: [docs/references.md](docs/references.md)
+```sh
+npm run playtest:report -- --in playtest-out/smoke.jsonl
+npm run playtest:sweep -- --sweep tools/playtest/sweeps/boss-cap.json --out playtest-out/boss-cap
 ```
-
-In `README.md`, add `npm run playtest -- --job tools/playtest/jobs/smoke.json --out playtest-out/smoke.jsonl` to the `## Commands` code block, after `npm run build`.
 
 In `docs/references.md`:
 
-- In **Files**, add after the `tests/bots.ts` entry:
+- In **Playtest harness**, add these bullets at the end of the list:
 
 ```md
-- `tools/playtest/`: headless balance harness. See [Playtest harness](#playtest-harness).
+- `npm run playtest:report` summarizes a JSONL file. Add `--compare <before.jsonl>` for a
+  before-and-after table.
+- `tools/playtest/targets.ts` holds the balance targets a script can check.
+- `npm run playtest:sweep` tries each value of one setting, checks every value against the
+  targets, and writes `proposal.md` and `proposal.json`. A sweep file sets `id`, `setting`,
+  `values`, `games`, and `seed`. The proposal is the passing value with the largest worst-case
+  margin across the targets.
 ```
 
-- Change the `src/config.ts` entry to also list `DEFAULT_RULES`.
-- Add this section before `## Saved settings`:
+In `docs/balance.md`:
 
-````md
-## Playtest harness
-
-`tools/playtest/` plays seeded bot games in Node worker threads, with no browser or build step.
-The sim has no randomness, so the same bot always gets the same result. Each game therefore uses a
-different seeded policy, and all bot randomness stays in the bot.
-
-```sh
-npm run playtest -- --job tools/playtest/jobs/smoke.json --out playtest-out/smoke.jsonl
-```
-
-- A job file sets `id`, `difficulty`, `seed`, and `games`, with optional `rules` and
-  `difficultyPatch` changes to game values.
-- The output has one JSON line per game. `config` is a hash of the resolved values, so results
-  from different configs can't be mixed by mistake.
-- `--workers` sets the thread count. `--start` and `--end` run part of a job, so it can be split
-  across machines. Combined shards match a single run line for line once sorted, which
-  `tools/playtest/same-lines.mjs` checks.
-- `Sim` takes a `Rules` object as its second argument. `resolveRules` and `resolveDifficulty` in
-  `tools/playtest/rules.ts` build changed copies without touching the config constants.
-- `tools/playtest/bound.ts` works out the most damage any static board can deal to a boss.
-- A new bot implements `Bot` from `tools/playtest/bots.ts`, and takes randomness only from
-  `ctx.rng`.
-````
-
-In `docs/balance.md`, add this as the first item under `## Open questions`:
+- In the **Current curve** table, add this row after `bossBudget`:
 
 ```md
-- **Final bosses can't be killed:** on Hard, the wave 30 boss has 29,997 HP, while a board bought
-  with all the money the game pays out deals at most 16,679 damage to it. Even 85 synths with
-  unlimited money deal about 20,000 and lose. Easy's boss has 20,998 HP against a 18,247 limit, so
-  Easy wins depend on it leaking. Boss health grows with the wave budget, but board damage is
-  capped by the 85 buildable cells. `tests/boss-bound.test.ts` records this with `it.fails`.
+| `bossHealthCap` | 1,000,000 | Highest boss health on Hard, scaled by `healthScale`. No effect yet |
 ```
 
-Change nothing else in `docs/balance.md`.
+- Change the "Bosses are too strong or too weak" row in **How to retune** to:
+
+```md
+| Bosses are too strong or too weak | `bossHealthCap` for the final boss, `bossBudget` for all bosses |
+```
+
+- Add this section before `## Research`:
+
+```md
+## Proposing a change
+
+`npm run playtest:sweep` tries a list of values for one setting and writes a proposal. It only
+suggests a value, and a person decides whether to use it. To apply one, change `src/config.ts`,
+run `npm test`, and update the results in this file.
+
+Until the strategy search exists, the bots are random policies, not strong players. Use proposals
+for coarse fixes, not fine tuning.
+```
+
+- In the **Final bosses can't be killed** open question, change `against a 18,247 limit` to `against an 18,247 limit`.
 
 ## Acceptance
 
@@ -552,19 +553,26 @@ Run these from the repository root.
 
 - `npm run typecheck` exits 0.
 - `npm run playtest -- --job tools/playtest/jobs/smoke.json --out playtest-out/one.jsonl --workers 1` exits 0 and prints a line starting `games=200 workers=1`.
-- `npm run playtest -- --job tools/playtest/jobs/smoke.json --out playtest-out/four.jsonl --workers 4` exits 0 and prints a line starting `games=200 workers=4`.
-- `npm run playtest -- --job tools/playtest/jobs/smoke.json --out playtest-out/s1.jsonl --workers 2 --start 0 --end 120` exits 0.
-- `npm run playtest -- --job tools/playtest/jobs/smoke.json --out playtest-out/s2.jsonl --workers 2 --start 120 --end 200` exits 0.
+- `npm run playtest -- --job tools/playtest/jobs/smoke.json --out playtest-out/four.jsonl --workers 4` exits 0.
 - `node tools/playtest/same-lines.mjs playtest-out/one.jsonl playtest-out/four.jsonl` prints `same 200`.
-- `node tools/playtest/same-lines.mjs playtest-out/one.jsonl playtest-out/s1.jsonl playtest-out/s2.jsonl` prints `same 200`.
-- `git grep -nE "\b(TOWERS|ENEMIES|SELL_REFUND|CHORD_BONUS_PER_TOWER|CHORD_MAX_TOWERS)\b" -- src/sim.ts` prints nothing.
-- `git diff --quiet -- src/main.ts src/render.ts tests/balance.test.ts tests/bots.ts tests/sim.test.ts tests/waves.test.ts tests/attacks.test.ts package-lock.json` exits 0.
+- `npm run playtest -- --job tools/playtest/jobs/smoke.json --out playtest-out/bad.jsonl --workers 0` exits 1.
+- `npm run playtest -- --job tools/playtest/jobs/smoke.json --out playtest-out/bad.jsonl --end 999` exits 1.
+- `npm run playtest -- --job tools/playtest/jobs/smoke.json --out playtest-out/bad.jsonl --start 5 --end 2` exits 1.
+- `npm run playtest -- --job tools/playtest/jobs/smoke.json --out playtest-out/bad.jsonl --worker 2` exits 1.
+- `npm run playtest:report -- --in playtest-out/one.jsonl` exits 0 and prints a Markdown table.
+- `npm run playtest:report -- --in playtest-out/one.jsonl --compare playtest-out/four.jsonl` exits 0 and prints a Markdown table.
+- `npm run playtest:sweep -- --sweep tools/playtest/sweeps/smoke.json --out playtest-out/sweep-a --workers 1` exits 0 and prints a line starting `proposal: curve.bossHealthCap =`.
+- `npm run playtest:sweep -- --sweep tools/playtest/sweeps/smoke.json --out playtest-out/sweep-b --workers 3` exits 0.
+- `node tools/playtest/same-lines.mjs playtest-out/sweep-a/proposal.json playtest-out/sweep-b/proposal.json` prints a line starting `same`.
+- `node tools/playtest/same-lines.mjs playtest-out/sweep-a/proposal.md playtest-out/sweep-b/proposal.md` prints a line starting `same`.
+- `git diff --quiet -- src/sim.ts src/main.ts src/render.ts tests/balance.test.ts tests/bots.ts tests/boss-bound.test.ts package-lock.json` exits 0.
 - `git status --porcelain -- playtest-out` prints nothing.
 
 Verifier only:
 
 - `npm test` exits 0.
 - `npm run build` exits 0.
+- `npm run playtest:sweep -- --sweep tools/playtest/sweeps/boss-cap.json --out playtest-out/boss-cap` exits 0 and writes `playtest-out/boss-cap/proposal.md`.
 
 ## Parallel work
 
@@ -578,18 +586,21 @@ None — do it sequentially.
 - If any command fails with `spawn EPERM`, stop and report it.
 - Do not request wider sandbox access, set `NODE_OPTIONS`, or stub modules to get past it.
 - Do not add dependencies, and do not change `package-lock.json`.
-- Do not change any game value, wave, or balance target.
-- Do not use `Math.random`, `Date.now`, or the current time in `src/sim.ts`, `tools/playtest/bots.ts`, or `tools/playtest/job.ts`.
-- Do not change the `spawn EPERM`-related rule in `AGENTS.md`.
+- Do not change `src/sim.ts`, or any game value other than adding `bossHealthCap` at 1000000.
+- Do not change `tests/balance.test.ts` or `tests/boss-bound.test.ts`, and keep every `it.fails`.
+- No tool may write to `src/`, `tests/`, or `docs/`.
+- Do not import a `node:` module from a `.ts` file. Node API use stays in `.mjs` files.
+- Do not use `Math.random`, `Date.now`, or the current time in any `.ts` file under `tools/playtest/`.
 
 ## Out of scope
 
-- Fixing boss health or any other balance change.
+- Applying a proposal, or setting `bossHealthCap` to a working value.
+- Removing `.fails` from `tests/boss-bound.test.ts`.
+- Changing the results tables in `docs/balance.md`.
 - MAP-Elites, genetic search, or skill tiers.
-- Reports or charts built from the JSONL output.
-- Novita or any remote execution.
+- Sweeping more than one setting at a time.
+- Charts, Novita, or remote execution.
 - Browser replay checks.
-- Moving towers during a wave as a bot strategy.
 
 ## If blocked
 

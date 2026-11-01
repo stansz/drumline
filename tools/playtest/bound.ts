@@ -1,7 +1,7 @@
-// The most damage any static board can deal to a boss. It is generous on purpose: every earlier
-// enemy pays its bounty, nothing is spent on earlier waves, every shot gets the capped chord
-// bonus, and no shot goes to another enemy. A boss above this limit can't be killed by a
-// static board.
+// A close estimate of the most damage a static board can deal to a boss. It is generous: every
+// earlier enemy pays its bounty, nothing is spent on earlier waves, every shot gets the capped
+// chord bonus, and no shot goes to another enemy. It leaves out three small effects: synth chains
+// and kick splash that reach the boss through a runner, and bounties from the boss's own wave.
 import {
   GRID_COLS,
   GRID_ROWS,

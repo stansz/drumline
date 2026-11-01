@@ -71,6 +71,7 @@ more, and enemy numbers are what grow income.
 | `waves` | 30 | Run length |
 | `bossEvery` | 10 | Bosses at waves 10, 20, and 30 |
 | `bossBudget` | 1 | Boss waves use a normal budget |
+| `bossHealthCap` | 1,000,000 | Highest boss health on Hard, scaled by `healthScale`. No effect yet |
 | `baseHealth` | 240 | Wave 1 budget |
 | `ramp` | 0.3 | Steady early growth |
 | `growth` | 1.10 | 10% compounding growth per wave |
@@ -153,12 +154,21 @@ time. A player who needs longer can turn **Auto** off.
 | --- | --- |
 | Late game too hard or too easy | `growth`, in steps of 0.01 |
 | Early game too hard or too easy | `ramp` or `baseHealth` |
-| Bosses are too strong or too weak | `bossBudget` |
+| Bosses are too strong or too weak | `bossHealthCap` for the final boss, `bossBudget` for all bosses |
 | Board fills too quickly or too slowly | `enemiesPerWave`, then `waveBonus` |
 | Only one mode feels wrong | That mode's `healthScale`, `startMoney`, or `waveBonus` |
 
 Change one setting at a time, then run `npm test` and read the balance results. Run
 `npx vitest run tests/balance.test.ts --reporter=verbose` to print each bot's result.
+
+## Proposing a change
+
+`npm run playtest:sweep` tries a list of values for one setting and writes a proposal. It only
+suggests a value, and a person decides whether to use it. To apply one, change `src/config.ts`,
+run `npm test`, and update the results in this file.
+
+Until the strategy search exists, the bots are random policies, not strong players. Use proposals
+for coarse fixes, not fine tuning.
 
 ## Research
 
@@ -180,7 +190,7 @@ Bloons figure, but on top of it, `ramp` adds extra growth in the early waves.
 
 - **Final bosses can't be killed:** on Hard, the wave 30 boss has 29,997 HP, while a board bought
   with all the money the game pays out deals at most 16,679 damage to it. Even 85 synths with
-  unlimited money deal about 20,000 and lose. Easy's boss has 20,998 HP against a 18,247 limit, so
+  unlimited money deal about 20,000 and lose. Easy's boss has 20,998 HP against an 18,247 limit, so
   Easy wins depend on it leaking. Boss health grows with the wave budget, but board damage is
   capped by the 85 buildable cells. `tests/boss-bound.test.ts` records this with `it.fails`.
 - **Human testing:** the bots are a stand-in. Hard is meant to be beatable by a thoughtful player,

@@ -60,12 +60,16 @@ export function buildWave(
     MIN_GAP_STEPS,
     START_GAP_STEPS - Math.floor(wave / WAVES_PER_GAP_STEP),
   );
-  return roster.map(([type, count]) => ({
-    type,
-    count,
-    gapSteps: type === 'boss' ? 0 : gapSteps,
-    hp: Math.max(1, Math.round(enemies[type].hp * scale)),
-  }));
+  const bossCap = Math.round(curve.bossHealthCap * difficulty.healthScale);
+  return roster.map(([type, count]) => {
+    const hp = Math.max(1, Math.round(enemies[type].hp * scale));
+    return {
+      type,
+      count,
+      gapSteps: type === 'boss' ? 0 : gapSteps,
+      hp: type === 'boss' ? Math.min(hp, bossCap) : hp,
+    };
+  });
 }
 
 export function buildWaves(

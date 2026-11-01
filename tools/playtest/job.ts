@@ -1,5 +1,12 @@
 import { type Difficulty, type DifficultyId, type Rules } from '../../src/config';
-import { makeRng, playGame, policyBot, randomPolicy } from './bots';
+import {
+  makeRng,
+  playGame,
+  policyBot,
+  randomPolicy,
+  type GameResult,
+  type Policy,
+} from './bots';
 import {
   configHash,
   resolveDifficulty,
@@ -22,15 +29,24 @@ interface Resolved {
   difficulty: Difficulty;
 }
 
-const resolvedJobs = new Map<string, Resolved>();
+export type GameRecord = {
+  job: string;
+  difficulty: DifficultyId;
+  index: number;
+  config: string;
+  seed: number;
+  policy: Policy;
+} & GameResult;
+
+const resolvedJobs = new WeakMap<Job, Resolved>();
 
 function resolveJob(job: Job): Resolved {
-  const cached = resolvedJobs.get(job.id);
+  const cached = resolvedJobs.get(job);
   if (cached) return cached;
   const rules = resolveRules(job.rules);
   const difficulty = resolveDifficulty(job.difficulty, job.difficultyPatch);
   const resolved: Resolved = { rules, difficulty };
-  resolvedJobs.set(job.id, resolved);
+  resolvedJobs.set(job, resolved);
   return resolved;
 }
 
@@ -51,6 +67,7 @@ export function runGame(job: Job, index: number): string {
 
   return JSON.stringify({
     job: job.id,
+    difficulty: job.difficulty,
     index,
     config: configHash(rules, difficulty),
     seed,

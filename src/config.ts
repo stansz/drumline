@@ -91,6 +91,7 @@ export interface WaveCurve {
   waves: number;
   bossEvery: number;
   bossBudget: number;
+  bossHealthCap: number;
   baseHealth: number;
   ramp: number;
   growth: number;
@@ -103,6 +104,7 @@ export const WAVE_CURVE: WaveCurve = {
   waves: 30,
   bossEvery: 10,
   bossBudget: 1,
+  bossHealthCap: 1000000,
   baseHealth: 240,
   ramp: 0.3,
   growth: 1.1,

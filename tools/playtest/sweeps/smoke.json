@@ -1,0 +1,7 @@
+{
+  "id": "smoke",
+  "setting": "curve.bossHealthCap",
+  "values": [12000, 14000],
+  "games": 40,
+  "seed": 11
+}

@@ -60,6 +60,13 @@ describe('playGame', () => {
     expect(result.chordAverage).toBeGreaterThan(1);
     expect(result.chordAverage).toBeLessThan(1.75);
   });
+
+  it('records boss kills, boss damage, and the final boss wave', () => {
+    const result = playGame(policyBot(base(1, 1, 1), rules), DIFFICULTIES.hard, rules, 1);
+    expect(result.bossKills).toEqual([10, 20]);
+    expect(result.finalBossWave).toBe(30);
+    expect(result.bossDamageByWave['10']).toBeGreaterThanOrEqual(1862);
+  });
 });
 
 describe('runGame', () => {
@@ -71,6 +78,17 @@ describe('runGame', () => {
 
   it('differs between indexes', () => {
     expect(runGame(job, 7)).not.toBe(runGame(job, 8));
+  });
+
+  it('keeps settings separate for jobs that share an id', () => {
+    const plain: Job = { id: 'shared', difficulty: 'hard', seed: 1, games: 1 };
+    const capped: Job = {
+      ...plain,
+      difficultyPatch: { curve: { bossHealthCap: 1000 } },
+    };
+    const plainConfig = JSON.parse(runGame(plain, 0)).config;
+    const cappedConfig = JSON.parse(runGame(capped, 0)).config;
+    expect(cappedConfig).not.toBe(plainConfig);
   });
 });
 
