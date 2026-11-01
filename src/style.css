@@ -80,6 +80,15 @@ body {
   white-space: nowrap;
 }
 
+#volume {
+  flex: 0 1 auto;
+  width: clamp(56px, 14vw, 120px);
+  min-width: 0;
+  margin: 0;
+  accent-color: var(--hat);
+  cursor: pointer;
+}
+
 #stage {
   width: min(100%, 896px, calc((100dvh - 190px) * 2));
   aspect-ratio: 2 / 1;
@@ -123,7 +132,7 @@ body {
 }
 
 .cost {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   opacity: 0.65;
 }
@@ -139,7 +148,7 @@ body {
 
 #controls button {
   min-height: 44px;
-  padding: 8px 4px;
+  padding: 8px 2px;
   border: 1px solid var(--grid);
   border-radius: 8px;
   background: var(--path);
@@ -186,6 +195,11 @@ body {
 }
 
 #start-wave {
+  border-color: var(--synth);
+  color: var(--synth);
+}
+
+#auto-wave {
   border-color: var(--synth);
   color: var(--synth);
 }

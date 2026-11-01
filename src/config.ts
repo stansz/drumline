@@ -3,6 +3,7 @@ import type { EnemyType, TowerType } from './sim';
 export const GRID_COLS = 16;
 export const GRID_ROWS = 8;
 export const STEPS_PER_BAR = 16;
+export const AUTO_WAVE_STEPS = 4 * STEPS_PER_BAR;
 
 export const BPM = 120;
 export const stepSeconds = (bpm: number): number => 60 / bpm / 4;

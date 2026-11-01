@@ -1,4 +1,4 @@
-import { Audio_ } from './audio';
+import { Audio_, parseVolume } from './audio';
 import {
   BPM,
   CHORD_BONUS_PER_TOWER,
@@ -50,8 +50,12 @@ const restartButton = byId<HTMLButtonElement>('restart');
 const easyButton = byId<HTMLButtonElement>('mode-easy');
 const hardButton = byId<HTMLButtonElement>('mode-hard');
 const themeButton = byId<HTMLButtonElement>('theme');
+const autoWaveButton = byId<HTMLButtonElement>('auto-wave');
+const volumeSlider = byId<HTMLInputElement>('volume');
 
 const THEME_KEY = 'drumline-theme';
+const AUTO_WAVE_KEY = 'drumline-auto-wave';
+const VOLUME_KEY = 'drumline-volume';
 const renderer = new Renderer(canvas);
 
 let sim = new Sim();
@@ -69,6 +73,8 @@ let musicStep = 0;
 let stepMarks: Array<{ at: number; step: number }> = [];
 let playhead = 0;
 let theme = loadTheme();
+let autoWave = loadAutoWave();
+let volume = loadVolume();
 
 window.__drumline = { sim, scheduler, audio };
 
@@ -77,6 +83,11 @@ function updateHud(): void {
   livesEl.textContent = `${sim.lives} lives`;
   waveEl.textContent = `Wave ${sim.wave}/${sim.waves.length}`;
   startWaveButton.disabled = sim.phase !== 'build';
+  const stepsLeft = sim.stepsUntilNextWave();
+  startWaveButton.textContent =
+    stepsLeft === null
+      ? 'Start wave'
+      : `Next in ${Math.max(1, Math.ceil(stepsLeft * stepSeconds(currentBpm())))}s`;
 }
 
 function towerAt(cell: { col: number; row: number } | null) {
@@ -170,6 +181,7 @@ async function startGame(): Promise<void> {
     audio = new Audio_(ctx);
     audio.setTheme(theme);
     audio.setMuted(muted);
+    audio.setVolume(volume);
     scheduler = new Scheduler(ctx, onStep);
     scheduler.bpm = currentBpm();
     scheduler.start();
@@ -226,8 +238,53 @@ function cycleTheme(): void {
   }
 }
 
+function loadAutoWave(): boolean {
+  try {
+    return localStorage.getItem(AUTO_WAVE_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
+
+function updateAutoWaveButton(): void {
+  autoWaveButton.textContent = autoWave ? 'Auto: On' : 'Auto: Off';
+  autoWaveButton.classList.toggle('selected', autoWave);
+}
+
+function toggleAutoWave(): void {
+  autoWave = !autoWave;
+  sim.setAutoWave(autoWave);
+  updateAutoWaveButton();
+  updateHud();
+  try {
+    localStorage.setItem(AUTO_WAVE_KEY, autoWave ? '1' : '0');
+  } catch {
+    // The choice just lasts for this visit when storage is unavailable.
+  }
+}
+
+function loadVolume(): number {
+  try {
+    return parseVolume(localStorage.getItem(VOLUME_KEY));
+  } catch {
+    return parseVolume(null);
+  }
+}
+
+function changeVolume(): void {
+  volume = parseVolume(volumeSlider.value);
+  audio?.setVolume(volume);
+  if (muted) toggleMute();
+  try {
+    localStorage.setItem(VOLUME_KEY, String(volume));
+  } catch {
+    // The choice just lasts for this visit when storage is unavailable.
+  }
+}
+
 function resetRun(difficulty: Difficulty): void {
   sim = new Sim(difficulty);
+  sim.setAutoWave(autoWave);
   queued = [];
   stepMarks = [];
   hover = null;
@@ -315,6 +372,8 @@ speedButton.addEventListener('click', cycleSpeed);
 muteButton.addEventListener('click', toggleMute);
 restartButton.addEventListener('click', restart);
 themeButton.addEventListener('click', cycleTheme);
+autoWaveButton.addEventListener('click', toggleAutoWave);
+volumeSlider.addEventListener('input', changeVolume);
 
 window.addEventListener('keydown', (event) => {
   if (event.repeat) return;
@@ -347,6 +406,9 @@ window.addEventListener('keydown', (event) => {
       break;
     case '4':
       selectTool('sell');
+      break;
+    case 'a':
+      toggleAutoWave();
       break;
     case 'f':
       cycleSpeed();
@@ -412,4 +474,6 @@ updateSelection();
 updateInfo();
 updateThemeButton();
 updateSpeedButton();
+updateAutoWaveButton();
+volumeSlider.value = String(volume);
 requestAnimationFrame(frame);

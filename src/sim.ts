@@ -1,4 +1,5 @@
 import {
+  AUTO_WAVE_STEPS,
   CHORD_BONUS_PER_TOWER,
   CHORD_MAX_TOWERS,
   DIFFICULTIES,
@@ -165,10 +166,12 @@ export class Sim {
   totalSteps: number;
   towers: Tower[];
   enemies: Enemy[];
+  autoWave: boolean;
 
   private nextEnemyId: number;
   private spawnQueue: Spawn[];
   private waveStartPending: boolean;
+  private nextWaveStep: number | null;
 
   constructor(difficulty: Difficulty = DIFFICULTIES.hard) {
     this.difficulty = difficulty;
@@ -181,9 +184,11 @@ export class Sim {
     this.totalSteps = 0;
     this.towers = [];
     this.enemies = [];
+    this.autoWave = false;
     this.nextEnemyId = 1;
     this.spawnQueue = [];
     this.waveStartPending = false;
+    this.nextWaveStep = null;
   }
 
   private hasTowerAt(col: number, row: number): boolean {
@@ -217,12 +222,24 @@ export class Sim {
     return true;
   }
 
+  setAutoWave(on: boolean): void {
+    this.autoWave = on;
+    const waiting = on && this.phase === 'build' && this.wave > 0;
+    this.nextWaveStep = waiting ? this.totalSteps + AUTO_WAVE_STEPS : null;
+  }
+
+  stepsUntilNextWave(): number | null {
+    if (this.nextWaveStep === null) return null;
+    return Math.max(0, this.nextWaveStep - this.totalSteps);
+  }
+
   startWave(): boolean {
     if (this.phase !== 'build') return false;
     if (this.wave >= this.waves.length) return false;
     this.wave += 1;
     this.phase = 'wave';
     this.waveStartPending = true;
+    this.nextWaveStep = null;
 
     const groups: WaveGroup[] = this.waves[this.wave - 1] ?? [];
     const stepsUntilBar = (STEPS_PER_BAR - this.stepIndex) % STEPS_PER_BAR;
@@ -397,6 +414,10 @@ export class Sim {
       return events;
     }
 
+    if (this.nextWaveStep !== null && this.totalSteps >= this.nextWaveStep) {
+      this.startWave();
+    }
+
     if (this.waveStartPending) {
       events.push({ kind: 'waveStart', wave: this.wave });
       this.waveStartPending = false;
@@ -450,6 +471,7 @@ export class Sim {
         events.push({ kind: 'won' });
       } else {
         this.phase = 'build';
+        this.nextWaveStep = this.autoWave ? this.totalSteps + 1 + AUTO_WAVE_STEPS : null;
       }
     }
 

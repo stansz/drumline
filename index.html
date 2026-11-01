@@ -12,6 +12,7 @@
         <span id="lives">20 lives</span>
         <span id="wave">Wave 0/30</span>
         <button id="theme" type="button" aria-label="Change music theme">♪ Neon</button>
+        <input id="volume" type="range" min="0" max="100" step="1" value="100" aria-label="Volume" title="Volume" />
       </header>
       <main id="stage">
         <canvas id="game" width="896" height="448" aria-label="Drumline game board"></canvas>
@@ -23,6 +24,7 @@
         <button id="tool-synth" type="button"><span class="glyph synth">◆</span> Synth <small class="cost"></small></button>
         <button id="tool-sell" type="button">Sell</button>
         <button id="start-wave" type="button">Start wave</button>
+        <button id="auto-wave" type="button">Auto: On</button>
         <button id="speed" type="button">120 BPM</button>
         <button id="mute" type="button">Mute</button>
         <button id="restart" type="button">Restart</button>

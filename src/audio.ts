@@ -21,6 +21,19 @@ const SOFT_CLIP_KNEE = 0.7;
 const SOFT_CLIP_CEILING = 0.95;
 const SOFT_CLIP_POINTS = 4097;
 
+export const MAX_VOLUME = 100;
+
+// Squared, because hearing is closer to logarithmic and a linear slider feels loud until the end.
+export function volumeGain(percent: number): number {
+  return (percent / MAX_VOLUME) ** 2;
+}
+
+export function parseVolume(stored: string | null): number {
+  const value = stored === null || stored === '' ? Number.NaN : Number(stored);
+  if (!Number.isFinite(value)) return MAX_VOLUME;
+  return Math.max(0, Math.min(MAX_VOLUME, Math.round(value)));
+}
+
 // Linear below the knee, then eases toward the ceiling. A WaveShaper holds the last curve value
 // for any louder input, so this caps the output however much the limiter lets through.
 export function softClipCurve(): Float32Array<ArrayBuffer> {
@@ -80,6 +93,7 @@ export class Audio_ {
   private readonly crushDry: GainNode;
   private readonly crushWet: GainNode;
   private readonly trim: GainNode;
+  private readonly volume: GainNode;
   private readonly crackleGain: GainNode;
   private readonly pulseWave: PeriodicWave;
   private readonly masterLevel = 0.8;
@@ -128,7 +142,10 @@ export class Audio_ {
     this.filter.connect(limiter);
     limiter.connect(softClip);
     softClip.connect(this.analyser);
-    this.analyser.connect(ctx.destination);
+    // After the limiter, so the slider changes the level without changing the mix.
+    this.volume = ctx.createGain();
+    this.analyser.connect(this.volume);
+    this.volume.connect(ctx.destination);
 
     this.towerBus = ctx.createGain();
     this.musicBus = ctx.createGain();
@@ -620,5 +637,9 @@ export class Audio_ {
       this.ctx.currentTime,
       0.01,
     );
+  }
+
+  setVolume(percent: number): void {
+    this.volume.gain.setTargetAtTime(volumeGain(percent), this.ctx.currentTime, 0.01);
   }
 }
