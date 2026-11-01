@@ -12,6 +12,9 @@ The target is an average within 1 dB of Neon across the test boards. Average lev
 not peak level, because short sounds can peak high and still sound quiet. The limiter also absorbs
 part of any boost, so a trim of 2 adds less than 6 dB in practice.
 
+The player's volume slider comes after the limiter and only turns the sound down, so it doesn't
+change the mix. The loudness page renders at full volume and doesn't depend on the slider.
+
 ## Adding or changing a theme
 
 1. Add or edit the theme in `src/themes.ts`, and add it to `THEMES`.

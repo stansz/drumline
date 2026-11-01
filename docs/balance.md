@@ -18,7 +18,7 @@ playtest has confirmed these numbers yet.
 Enemy speed, tower stats, kill rewards, and the chord bonus are the same on both.
 
 All tunable values live in `src/config.ts`, in `WAVE_CURVE` and `DIFFICULTIES`. The wave
-generator is `src/waves.ts`.
+generator is `src/waves.ts`. `AUTO_WAVE_STEPS` sets the gap between automatic waves.
 
 ## Why it changed
 
@@ -119,7 +119,8 @@ too far or the target needs to move.
 | Easy | Spread | Won with 10 lives | 78 | 13.2 min |
 | Easy | Stack | Won with 10 lives | 63 | 13.0 min |
 
-Times count wave play only, not time spent building. Runs take half as long at 240 BPM.
+Times count wave play only, not time spent building. Runs take half as long at 240 BPM. With
+**Auto** on, waiting out every countdown adds about 3.9 minutes at 120 BPM.
 
 The Hard spread bot holds at 15 lives and the Hard stack bot at 20 until the late waves, then both
 collapse quickly. Pressure on Hard therefore arrives late.
@@ -128,8 +129,13 @@ collapse quickly. Pressure on Hard therefore arrives late.
 
 - **Casual:** buys one tower before each wave, placed for good coverage.
 - **Spread:** spends everything, keeping columns as even as it can.
-- **Stack:** spends everything, stacking up to 4 towers in a column for the chord bonus.
+- **Stack:** spends everything, stacking up to 4 towers in a column for the chord bonus. Its name
+  in `tests/bots.ts` and the test output is `chord`.
 - **Idle:** builds nothing.
+
+The bots run with **Auto** off and build between waves with no time limit. The gap doesn't change
+how much money a player earns, and towers can be placed during a wave, but it does limit thinking
+time. A player who needs longer can turn **Auto** off.
 
 ## Tuning findings
 
@@ -182,5 +188,8 @@ Bloons figure, but on top of it, `ramp` adds extra growth in the early waves.
   remains small. The chord bonus was left unchanged.
 - **Music build-up:** `intensity` in `src/music.ts` still peaks by wave 5, so the soundtrack stops
   building for the rest of a 30-wave run.
+- **Sending waves early:** this earns nothing extra, so it only saves time. A bonus would give
+  strong players a reason to take the risk, but it would also add income the targets don't allow
+  for.
 - **Normal mode:** the game has two modes for now. A third would mean adding one entry to
   `DIFFICULTIES` and a button on the difficulty screen.

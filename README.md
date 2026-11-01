@@ -12,10 +12,14 @@ one step: towers fire when the playhead reaches their column.
 - **Hat** (35): fast chip damage, fires four times per bar.
 - **Synth** (70): long-range damage that chains to nearby enemies.
 
-Towers that fire on the same step form a chord and deal bonus damage. Build, then press **Start wave** to send wave 1. With **Auto** on, each later wave starts 4 bars after the last one clears, and pressing the button during the countdown sends it early. Turn **Auto** off to start every wave yourself. Every leaked enemy costs lives; clear
-all 30 waves before your lives run out to win. A boss arrives every 10 waves, and
-one that gets through costs 20 lives. Select **Sell** and click a tower to refund
-70% of its cost.
+Towers that fire on the same step form a chord and deal bonus damage. Build,
+then press **Start wave** to send wave 1. With **Auto** on, each later wave
+starts 4 bars after the last one clears, which is 8 seconds at 120 BPM. Press
+the button during the countdown to send the wave early, or turn **Auto** off to
+start every wave yourself. Every leaked enemy costs lives; clear all 30 waves
+before your lives run out to win. A boss arrives every 10 waves, and one that
+gets through costs 20 lives. Select **Sell** and click a tower to refund 70% of
+its cost.
 
 | Mode | Lives | Starting money | Wave bonus | Enemy health |
 | --- | --- | --- | --- | --- |
@@ -25,7 +29,7 @@ one that gets through costs 20 lives. Select **Sell** and click a tower to refun
 [docs/balance.md](docs/balance.md) explains how the difficulty curve works and how
 to retune it.
 
-Press **Theme** to switch between the Neon, Chiptune, Lo-fi, Techno, and Funk soundtracks at any time. Themes change the music and tower sounds, never the tempo or the game.
+Press **Theme** to switch between the Neon, Chiptune, Lo-fi, Techno, and Funk soundtracks at any time. Themes change the music and tower sounds, never the tempo or the game. [docs/themes.md](docs/themes.md) explains how to add a theme and match its volume.
 
 ## Controls
 
@@ -39,7 +43,9 @@ Press **Theme** to switch between the Neon, Chiptune, Lo-fi, Techno, and Funk so
 - **T** change the music theme
 - **R** restart and choose a difficulty again
 
-The on-screen buttons provide the same actions. The slider beside the theme button sets the volume. Volume and **Auto** are remembered between visits.
+The on-screen buttons provide the same actions, and the slider beside the theme
+button sets the volume. Your theme, volume, and **Auto** setting are remembered
+between visits. Speed and mute reset when you start a new run.
 
 ## Commands
 
@@ -47,9 +53,11 @@ The on-screen buttons provide the same actions. The slider beside the theme butt
 npm install
 npm run dev
 npm test
+npm run typecheck
 npm run build
 ```
 
 `npm run build` type-checks the project and writes a static site to `dist/`.
 Pushing to `main` deploys that site to GitHub Pages through the included
-workflow.
+workflow. [docs/references.md](docs/references.md) describes how the code fits
+together.
