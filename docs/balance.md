@@ -191,6 +191,14 @@ Each search below played 54,000 games with the settings in `tools/playtest/searc
 - **Easy punishes almost nothing.** Nearly every style wins, including builds with no synths and
   builds with no hats.
 
+### Browser replay
+
+On 2026-11-01, both expert builds were replayed in the deployed game in headless Edge at 240 BPM,
+with the game's own audio clock driving each step. Both won with 2 lives left, and lives matched the
+sim at the end of all 30 waves. A script placed the towers and started each wave at the exact step
+the sim does, so this shows the browser plays the same game as the sim, not that a person can match
+that timing.
+
 ### Final boss limits
 
 These come from the `boss-cap` sweep and `tools/playtest/bound.ts`.
