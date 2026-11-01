@@ -234,7 +234,8 @@ targets aren't in `tools/playtest/targets.ts` yet.
 ## Keeping this file current
 
 Any change to tower, enemy, chord, refund, wave, or difficulty values changes a config hash, which
-makes the results above out of date. In the same change:
+makes the results above out of date. `tests/balance-docs.test.ts` then fails, which blocks the
+deploy, until the hashes in [Status](#status) are updated. In the same change:
 
 1. Run the five searches in `tools/playtest/searches/` (not `smoke.json`), the `boss-cap` sweep, and
    `npm run playtest:tiers` for both modes.
