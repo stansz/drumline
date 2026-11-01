@@ -1,5 +1,6 @@
 // Browser-only harness: Web Audio is unavailable in vitest. With `npm run dev` running, open
 // /tests/loudness.html. It renders each board through the real audio chain, faster than real time.
+// Add ?theme=funk, for example, to render only that theme.
 import { Audio_ } from '../src/audio';
 import {
   GRID_COLS,
@@ -11,6 +12,7 @@ import {
 import { intensity, layerLevels } from '../src/music';
 import { Sim, type TowerType } from '../src/sim';
 import { DEFAULT_THEME, THEMES, type Theme } from '../src/themes';
+import { NEON_BASELINE } from './loudness-baseline';
 
 const SAMPLE_RATE = 48000;
 const BARS = 8;
@@ -76,6 +78,9 @@ const BOARDS: Record<string, Board> = {
 
 const THEME_BOARDS = ['spread 12', 'kick line', 'full board'];
 const LOUDNESS_BPMS = [120, 240];
+const LOUDNESS_TOLERANCE_DB = 1;
+// Measured on Chiptune: the limiter lets through about 0.4 dB for each 1 dB of trim.
+const LIMITER_RESPONSE = 0.4;
 
 function seedRandom(seed: number): () => void {
   const original = Math.random;
@@ -151,14 +156,15 @@ async function renderBoard(
 }
 
 export async function runLoudness(): Promise<Result[]> {
+  const only = new URLSearchParams(location.search).get('theme');
   const results: Result[] = [];
-  for (const [name, board] of Object.entries(BOARDS)) {
+  for (const [name, board] of only ? [] : Object.entries(BOARDS)) {
     for (const bpm of LOUDNESS_BPMS) {
       results.push(await renderBoard(name, board, bpm, DEFAULT_THEME));
     }
   }
   for (const theme of THEMES) {
-    if (theme === DEFAULT_THEME) continue;
+    if (only ? theme.id !== only : theme === DEFAULT_THEME) continue;
     for (const name of THEME_BOARDS) {
       for (const bpm of LOUDNESS_BPMS) {
         results.push(await renderBoard(name, BOARDS[name] ?? [], bpm, theme));
@@ -168,8 +174,58 @@ export async function runLoudness(): Promise<Result[]> {
   return results;
 }
 
+// Each theme's average loudness compared with NEON_BASELINE. Set `space.trim` in src/themes.ts to
+// bring a theme back within LOUDNESS_TOLERANCE_DB.
+function themeOffsets(results: Result[]): Record<string, number> {
+  const offsets: Record<string, number> = {};
+  for (const theme of THEMES) {
+    const differences: number[] = [];
+    for (const result of results) {
+      const neon = NEON_BASELINE[result.board]?.[result.bpm];
+      if (result.theme === theme.name && neon !== undefined) {
+        differences.push(result.rmsDb - neon);
+      }
+    }
+    if (differences.length === 0) continue;
+    const mean = differences.reduce((sum, value) => sum + value, 0) / differences.length;
+    offsets[theme.name] = Number(mean.toFixed(1));
+  }
+  return offsets;
+}
+
+function suggestedTrims(offsets: Record<string, number>): Record<string, number> {
+  const trims: Record<string, number> = {};
+  for (const theme of THEMES) {
+    const offset = offsets[theme.name];
+    if (offset === undefined || theme === DEFAULT_THEME) continue;
+    const trim = theme.space.trim * 10 ** (-offset / LIMITER_RESPONSE / 20);
+    trims[theme.name] = Number(trim.toFixed(2));
+  }
+  return trims;
+}
+
+function neonLevels(results: Result[]): Record<string, Record<number, number>> {
+  const levels: Record<string, Record<number, number>> = {};
+  for (const result of results) {
+    if (result.theme !== DEFAULT_THEME.name || !NEON_BASELINE[result.board]) continue;
+    levels[result.board] = { ...levels[result.board], [result.bpm]: result.rmsDb };
+  }
+  return levels;
+}
+
 const output = document.querySelector('#results');
 void runLoudness().then((results) => {
-  if (output) output.textContent = JSON.stringify(results, null, 1);
-  document.title = results.every((result) => result.clippedSamples === 0) ? 'PASS' : 'FAIL';
+  const offsets = themeOffsets(results);
+  const balanced = Object.values(offsets).every(
+    (offset) => Math.abs(offset) <= LOUDNESS_TOLERANCE_DB,
+  );
+  const report = {
+    offsets,
+    suggestedTrims: suggestedTrims(offsets),
+    baseline: neonLevels(results),
+    results,
+  };
+  if (output) output.textContent = JSON.stringify(report, null, 1);
+  const clean = results.every((result) => result.clippedSamples === 0);
+  document.title = clean && balanced ? 'PASS' : 'FAIL';
 });

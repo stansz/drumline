@@ -79,6 +79,7 @@ export class Audio_ {
   private readonly delayFeedback: GainNode;
   private readonly crushDry: GainNode;
   private readonly crushWet: GainNode;
+  private readonly trim: GainNode;
   private readonly crackleGain: GainNode;
   private readonly pulseWave: PeriodicWave;
   private readonly masterLevel = 0.8;
@@ -116,8 +117,11 @@ export class Audio_ {
     this.crushWet = ctx.createGain();
     this.crushDry.gain.value = 1;
     this.crushWet.gain.value = 0;
-    this.master.connect(this.crushDry);
-    this.master.connect(crusher);
+    this.trim = ctx.createGain();
+    this.trim.gain.value = 1;
+    this.master.connect(this.trim);
+    this.trim.connect(this.crushDry);
+    this.trim.connect(crusher);
     crusher.connect(this.crushWet);
     this.crushDry.connect(this.filter);
     this.crushWet.connect(this.filter);
@@ -590,6 +594,7 @@ export class Audio_ {
     this.filter.frequency.setTargetAtTime(space.toneHz, now, 0.02);
     this.crushDry.gain.setTargetAtTime(1 - space.crush, now, 0.02);
     this.crushWet.gain.setTargetAtTime(space.crush, now, 0.02);
+    this.trim.gain.setTargetAtTime(space.trim, now, 0.02);
     this.crackleGain.gain.setTargetAtTime(theme.crackle, now, 0.02);
     this.reverb.buffer = this.reverbImpulse(space.reverbSeconds);
   }

@@ -12,6 +12,7 @@ describe('themes', () => {
     expect(DEFAULT_THEME.space.delaySend).toBe(MIX.delaySend);
     expect(DEFAULT_THEME.space.delayFeedback).toBe(MIX.delayFeedback);
     expect(DEFAULT_THEME.space.crush).toBe(0);
+    expect(DEFAULT_THEME.space.trim).toBe(1);
     expect(DEFAULT_THEME.swing).toBe(0);
     expect(DEFAULT_THEME.crackle).toBe(0);
     for (const part of DRUM_PARTS) {
