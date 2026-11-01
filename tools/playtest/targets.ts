@@ -12,8 +12,7 @@ export interface Target {
   max?: number;
 }
 
-// Random policies stand in for strong play until the strategy search exists, so these targets
-// only support coarse changes.
+// Sweeps use random policies, not strong players, so these targets only support coarse changes.
 export const TARGETS: Target[] = [
   { id: 'hard-bots-lose', difficulty: 'hard', metric: 'winRate', max: 0.01 },
   { id: 'hard-boss-killable', difficulty: 'hard', metric: 'bossBoundShare', max: 0.9 },

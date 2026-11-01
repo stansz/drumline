@@ -47,12 +47,15 @@ The on-screen buttons provide the same actions, and the slider beside the theme
 button sets the volume. Your theme, volume, and **Auto** setting are remembered
 between visits. Speed and mute reset when you start a new run.
 
+On a phone, tap instead of clicking, and turn the phone sideways for a bigger board.
+
 ## Commands
 
 ```sh
 npm install
 npm run dev
 npm test
+npm run test:sandbox
 npm run typecheck
 npm run build
 npm run playtest -- --job tools/playtest/jobs/smoke.json --out playtest-out/smoke.jsonl
@@ -62,7 +65,8 @@ npm run playtest:search -- --search tools/playtest/searches/hard.json --out play
 npm run playtest:tiers -- --plan playtest-out/search-hard/best-plan.json --games 200 --seed 1 --out playtest-out/tiers-hard
 ```
 
-`npm run build` type-checks the project and writes a static site to `dist/`.
+`npm run test:sandbox` runs the same tests inside the Windows `dsh` sandbox, where `npm test` can't
+start. `npm run build` type-checks the project and writes a static site to `dist/`.
 Pushing to `main` deploys that site to GitHub Pages through the included
 workflow. [docs/references.md](docs/references.md) describes how the code fits
 together.

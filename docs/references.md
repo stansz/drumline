@@ -65,7 +65,9 @@ that the hovered or inspected tower plays on.
 
 On phones held upright, the board's size is limited by the screen width, so it runs edge to edge.
 On phones held sideways, the controls sit in a column beside the board, which gives it most of the
-screen. `#rotate-hint` on the start screen points players to that layout.
+screen. `#rotate-hint` on the start screen points players to that layout. These layouts were
+measured in headless Edge at phone sizes, not on a real phone. On 360px-wide phones, selecting Synth
+still moves the board by 5px, because its description wraps to an extra line.
 
 ## Audio load
 
@@ -89,8 +91,12 @@ different seeded policy, and all bot randomness stays in the bot.
 npm run playtest -- --job tools/playtest/jobs/smoke.json --out playtest-out/smoke.jsonl
 ```
 
+The playtest commands load TypeScript directly through Node, and have only been run on Node 24. The
+deploy workflow uses Node 22, but it only runs the tests and the build, not these commands.
+
 - A job file sets `id`, `difficulty`, `seed`, and `games`, with optional `rules` and
-  `difficultyPatch` changes to game values.
+  `difficultyPatch` changes to game values, and an optional `bot` that picks a skill tier or a
+  build plan.
 - The output has one JSON line per game. `config` is a hash of the resolved values, so results
   from different configs can't be mixed by mistake.
 - `--workers` sets the thread count. `--start` and `--end` run part of a job, so it can be split
@@ -114,7 +120,9 @@ npm run playtest -- --job tools/playtest/jobs/smoke.json --out playtest-out/smok
   `bannedTowers`, which shows how much a tower is worth. It writes `report.md`, `archive.json`,
   and `best-plan.json`.
 - `npm run playtest:tiers` runs Casual, Competent, Strong, and Expert bots and writes `tiers.md`.
-  Expert replays a search's best plan with seeded mistakes.
+  Expert replays a search's best plan with seeded mistakes. `--plan` takes a `best-plan.json` or a
+  file from `tests/fixtures/`. A clean win in its table means the final boss was killed, not that no
+  lives were lost.
 
 ## Saved settings
 

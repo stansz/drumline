@@ -2,8 +2,9 @@
 
 How Drumline's difficulty works, why it is set up this way, and how to change it.
 
-Last tuned 2026-11-01. Every result below comes from the bots in `tests/bots.ts`. No human
-playtest has confirmed these numbers yet.
+Last tuned 2026-11-01. Every result below comes from bots, either the scripted ones in
+`tests/bots.ts` or the playtest tools in `tools/playtest/`. No human playtest has confirmed these
+numbers yet.
 
 ## Quick reference
 
@@ -144,6 +145,31 @@ The bots run with **Auto** off and build between waves with no time limit. The g
 how much money a player earns, and towers can be placed during a wave, but it does limit thinking
 time. A player who needs longer can turn **Auto** off.
 
+### Skill tiers
+
+`npm run playtest:tiers` plays 200 seeded games at each tier. These results use seed 1.
+
+| Mode | Tier | Win rate | Typical final wave | Wave reached by the worst 10% |
+| --- | --- | --- | --- | --- |
+| Hard | Casual | 0% | 20 | 10 |
+| Hard | Competent | 0% | 27 | 20 |
+| Hard | Strong | 0% | 28 | 20 |
+| Hard | Expert | 49% | 29 | 20 |
+| Easy | Casual | 54% | 30 | 27 |
+| Easy | Competent | 100% | 30 | 30 |
+| Easy | Strong | 100% | 30 | 30 |
+| Easy | Expert | 100% | 30 | 30 |
+
+Casual buys one tower a wave, Competent up to three, and Strong as many as it can afford. Each game
+uses a different random tower mix. Expert replays a search build with 5% seeded mistakes, using
+`tests/fixtures/hard-expert-a.json` on Hard and the best plan from `searches/easy.json` on Easy.
+
+The scripted Casual bot and the Casual tier differ. The scripted bot always follows the same rules
+and falls at wave 10 on Hard, while the tier's random mixes usually reach wave 20.
+
+Hard loses most games at two waves. Wave 29 stopped 79 of the 179 Expert games that passed wave 20,
+and wave 20 itself stopped 82 Competent games and 68 Strong games.
+
 ## Tuning findings
 
 - **Bosses dominate.** A boss that gets through costs 20 lives, so it ends a Hard run outright. At
@@ -188,8 +214,9 @@ Change one setting at a time, then run `npm test` and read the balance results. 
 suggests a value, and a person decides whether to use it. To apply one, change `src/config.ts`,
 run `npm test`, and update the results in this file.
 
-Until the strategy search exists, the bots are random policies, not strong players. Use proposals
-for coarse fixes, not fine tuning.
+Sweeps use random policies, not strong players, so use their proposals for coarse fixes only, and
+check them against the strategy search. A sweep proposed a `bossHealthCap` of 14,000, and the search
+then showed that value was too high.
 
 The strategy search and skill tiers show what strong play can do, and where each tier loses. Their
 targets aren't in `tools/playtest/targets.ts` yet.
@@ -214,14 +241,15 @@ Bloons figure, but on top of it, `ramp` adds extra growth in the early waves.
 
 - **Human testing:** the bots are a stand-in. Hard is meant to be beatable by a thoughtful player,
   and that has not been proven.
-- **Hard is a narrow win:** the best search builds win with 2 lives left. That margin comes from
-  bots, so a person still has to show that Hard can be won.
+- **Hard is a narrow win:** the best search builds win with 2 lives left, and Expert wins 49% of its
+  games. That margin comes from bots, so a person still has to show that Hard can be won.
 - **Easy offers little challenge to steady builders:** Casual bots win about half their games, while
   Competent bots win every game without losing a life. A Normal mode could fill that gap.
 - **Late collapse on Hard:** runs hold steady and then fall apart quickly. If that feels abrupt,
   lower `growth` and raise `ramp`.
-- **Stacking:** the stack bot survives one wave longer than the spread bot on Hard, so the gap
-  remains small. The chord bonus was left unchanged.
+- **Tower balance:** hats are mandatory on Hard, and builds focused on chords never pass wave 20,
+  even though the scripted stack bot survives one wave longer than the spread bot. The tower stats
+  and chord bonus are unchanged. Settle this before adding tower upgrades.
 - **Music build-up:** `intensity` in `src/music.ts` still peaks by wave 5, so the soundtrack stops
   building for the rest of a 30-wave run.
 - **Sending waves early:** this earns nothing extra, so it only saves time. A bonus would give
