@@ -10,7 +10,7 @@
       <header id="hud">
         <span id="money">$100</span>
         <span id="lives">20 lives</span>
-        <span id="wave">Wave 0/5</span>
+        <span id="wave">Wave 0/30</span>
       </header>
       <main id="stage">
         <canvas id="game" width="896" height="448" aria-label="Drumline game board"></canvas>
@@ -28,7 +28,11 @@
       </div>
     </div>
     <div id="overlay">
-      <div id="overlay-text">Click to start</div>
+      <div id="overlay-text">Choose a difficulty</div>
+      <div id="mode-buttons">
+        <button id="mode-easy" type="button">Easy</button>
+        <button id="mode-hard" type="button">Hard</button>
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

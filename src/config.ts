@@ -17,9 +17,6 @@ export const PATH_WAYPOINTS: ReadonlyArray<readonly [number, number]> = [
   [15, 6],
 ];
 
-export const START_MONEY = 100;
-export const START_LIVES = 20;
-export const WAVE_CLEAR_BONUS = 40;
 export const SELL_REFUND = 0.7;
 
 export const CHORD_BONUS_PER_TOWER = 0.25;
@@ -63,27 +60,66 @@ export interface WaveGroup {
   type: EnemyType;
   count: number;
   gapSteps: number;
+  hp: number;
 }
 
-export const WAVES: WaveGroup[][] = [
-  [{ type: 'blip', count: 8, gapSteps: 8 }],
-  [
-    { type: 'blip', count: 10, gapSteps: 6 },
-    { type: 'runner', count: 6, gapSteps: 8 },
-  ],
-  [
-    { type: 'brute', count: 6, gapSteps: 16 },
-    { type: 'runner', count: 10, gapSteps: 4 },
-  ],
-  [
-    { type: 'blip', count: 14, gapSteps: 4 },
-    { type: 'brute', count: 8, gapSteps: 12 },
-  ],
-  [
-    { type: 'boss', count: 1, gapSteps: 0 },
-    { type: 'runner', count: 12, gapSteps: 6 },
-  ],
-];
+// See docs/balance.md for how these numbers were chosen and how to retune them.
+export interface WaveCurve {
+  waves: number;
+  bossEvery: number;
+  bossBudget: number;
+  baseHealth: number;
+  ramp: number;
+  growth: number;
+  baseEnemies: number;
+  enemiesPerWave: number;
+  maxEnemies: number;
+}
+
+export const WAVE_CURVE: WaveCurve = {
+  waves: 30,
+  bossEvery: 10,
+  bossBudget: 1,
+  baseHealth: 240,
+  ramp: 0.3,
+  growth: 1.1,
+  baseEnemies: 8,
+  enemiesPerWave: 0.6,
+  maxEnemies: 30,
+};
+
+export type DifficultyId = 'easy' | 'hard';
+
+export interface Difficulty {
+  id: DifficultyId;
+  name: string;
+  startMoney: number;
+  startLives: number;
+  waveBonus: number;
+  healthScale: number;
+  curve: WaveCurve;
+}
+
+export const DIFFICULTIES: Record<DifficultyId, Difficulty> = {
+  easy: {
+    id: 'easy',
+    name: 'Easy',
+    startMoney: 150,
+    startLives: 30,
+    waveBonus: 40,
+    healthScale: 0.7,
+    curve: WAVE_CURVE,
+  },
+  hard: {
+    id: 'hard',
+    name: 'Hard',
+    startMoney: 100,
+    startLives: 20,
+    waveBonus: 20,
+    healthScale: 1,
+    curve: WAVE_CURVE,
+  },
+};
 
 export const MUSIC_CHORDS = [
   { name: 'Am7', pad: [57, 60, 64, 67], bass: 45 },

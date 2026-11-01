@@ -1,17 +1,21 @@
-import { GRID_COLS, GRID_ROWS, TOWERS } from '../src/config';
+import { DIFFICULTIES, GRID_COLS, GRID_ROWS, TOWERS, type Difficulty } from '../src/config';
 import { Sim, pathCells, type Phase, type TowerType } from '../src/sim';
 
-export type BotStrategy = 'idle' | 'spread' | 'chord';
+export type BotStrategy = 'idle' | 'casual' | 'spread' | 'chord';
 
 export interface BotResult {
   result: Phase;
   wave: number;
   lives: number;
   money: number;
+  towers: number;
+  steps: number;
+  livesByWave: number[];
 }
 
 const TOWER_ORDER: TowerType[] = ['kick', 'hat', 'synth'];
-const MAX_STEPS = 20000;
+const MAX_STEPS = 200000;
+const CASUAL_TOWERS_PER_WAVE = 1;
 
 interface Candidate {
   col: number;
@@ -60,7 +64,8 @@ function bestCell(sim: Sim, type: TowerType, strategy: BotStrategy): Candidate |
 }
 
 function spendAll(sim: Sim, strategy: BotStrategy, cycle: { index: number }): void {
-  for (;;) {
+  let budget = strategy === 'casual' ? CASUAL_TOWERS_PER_WAVE : Number.POSITIVE_INFINITY;
+  while (budget > 0) {
     let placed = false;
     for (let attempt = 0; attempt < TOWER_ORDER.length; attempt += 1) {
       const type = TOWER_ORDER[cycle.index % TOWER_ORDER.length];
@@ -78,12 +83,17 @@ function spendAll(sim: Sim, strategy: BotStrategy, cycle: { index: number }): vo
       cycle.index = (cycle.index + 1) % TOWER_ORDER.length;
     }
     if (!placed) return;
+    budget -= 1;
   }
 }
 
-export function playBot(strategy: BotStrategy): BotResult {
-  const sim = new Sim();
+export function playBot(
+  strategy: BotStrategy,
+  difficulty: Difficulty = DIFFICULTIES.hard,
+): BotResult {
+  const sim = new Sim(difficulty);
   const cycle = { index: 0 };
+  const livesByWave: number[] = [];
 
   while (sim.phase !== 'won' && sim.phase !== 'lost') {
     if (strategy !== 'idle') {
@@ -98,6 +108,7 @@ export function playBot(strategy: BotStrategy): BotResult {
         throw new Error(`bot ${strategy} exceeded ${MAX_STEPS} steps`);
       }
     }
+    livesByWave.push(sim.lives);
   }
 
   return {
@@ -105,5 +116,8 @@ export function playBot(strategy: BotStrategy): BotResult {
     wave: sim.wave,
     lives: sim.lives,
     money: sim.money,
+    towers: sim.towers.length,
+    steps: sim.totalSteps,
+    livesByWave,
   };
 }

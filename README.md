@@ -4,7 +4,7 @@ A tower defense game where your defense plays the music.
 
 ## How to play
 
-Click the overlay to start the audio clock. Enemies march along the path while
+Choose **Easy** or **Hard** to start the audio clock. Enemies march along the path while
 your instruments sit on a looping 16-step sequencer. Each column of the board is
 one step: towers fire when the playhead reaches their column.
 
@@ -14,17 +14,27 @@ one step: towers fire when the playhead reaches their column.
 
 Towers that fire on the same step form a chord and deal bonus damage. Build
 before a wave, then press **Start wave**. Every leaked enemy costs lives; clear
-all five waves without losing all 20 lives to win. Select **Sell** and click a
-tower to refund 70% of its cost.
+all 30 waves before your lives run out to win. A boss arrives every 10 waves, and
+one that gets through costs 20 lives. Select **Sell** and click a tower to refund
+70% of its cost.
+
+| Mode | Lives | Starting money | Wave bonus | Enemy health |
+| --- | --- | --- | --- | --- |
+| Easy | 30 | $150 | $40 | 70% |
+| Hard | 20 | $100 | $20 | 100% |
+
+[docs/balance.md](docs/balance.md) explains how the difficulty curve works and how
+to retune it.
 
 ## Controls
 
+- **E** Easy or **H** Hard on the difficulty screen
 - **1** Kick, **2** Hat, **3** Synth, **4** Sell
 - Click a buildable cell to place the selected tower
 - **Space** start the next wave
 - **F** toggle 2× speed
 - **M** mute or unmute
-- **R** restart
+- **R** restart and choose a difficulty again
 
 The on-screen buttons provide the same actions.
 

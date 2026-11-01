@@ -4,6 +4,7 @@ import {
   BASS_STEPS,
   BPM,
   CHORD_BONUS_PER_TOWER,
+  DIFFICULTIES,
   FAST_BPM,
   GRID_COLS,
   GRID_ROWS,
@@ -11,8 +12,9 @@ import {
   STEPS_PER_BAR,
   TOWERS,
   TOWER_INFO,
-  WAVES,
   stepSeconds,
+  type Difficulty,
+  type DifficultyId,
 } from './config';
 import { arpNote, chordForStep, intensity, layerLevels } from './music';
 import { Renderer } from './render';
@@ -47,6 +49,8 @@ const startWaveButton = byId<HTMLButtonElement>('start-wave');
 const fastButton = byId<HTMLButtonElement>('fast');
 const muteButton = byId<HTMLButtonElement>('mute');
 const restartButton = byId<HTMLButtonElement>('restart');
+const easyButton = byId<HTMLButtonElement>('mode-easy');
+const hardButton = byId<HTMLButtonElement>('mode-hard');
 
 const renderer = new Renderer(canvas);
 
@@ -70,7 +74,7 @@ window.__drumline = { sim, scheduler, audio };
 function updateHud(): void {
   moneyEl.textContent = `$${sim.money}`;
   livesEl.textContent = `${sim.lives} lives`;
-  waveEl.textContent = `Wave ${sim.wave}/${WAVES.length}`;
+  waveEl.textContent = `Wave ${sim.wave}/${sim.waves.length}`;
   startWaveButton.disabled = sim.phase !== 'build';
 }
 
@@ -97,7 +101,7 @@ function updateInfo(): void {
     infoEl.textContent = `Click a tower to sell it for ${Math.round(SELL_REFUND * 100)}% of its cost.`;
     return;
   }
-  infoEl.textContent = `Towers fire when the playhead reaches their column. Towers firing together form a chord: +${CHORD_BONUS_PER_TOWER * 100}% damage each.`;
+  infoEl.textContent = `${sim.difficulty.name} mode. Towers fire when the playhead reaches their column. Towers firing together form a chord: +${CHORD_BONUS_PER_TOWER * 100}% damage each.`;
 }
 
 function updateSelection(): void {
@@ -114,7 +118,7 @@ function selectTool(tool: TowerType | 'sell' | null): void {
 }
 
 function showStartOverlay(): void {
-  overlayText.textContent = 'Click to start';
+  overlayText.textContent = 'Choose a difficulty';
   overlay.classList.remove('hidden', 'passive');
 }
 
@@ -197,8 +201,8 @@ function toggleMute(): void {
   muteButton.classList.toggle('selected', muted);
 }
 
-function restart(): void {
-  sim = new Sim();
+function resetRun(difficulty: Difficulty): void {
+  sim = new Sim(difficulty);
   queued = [];
   stepMarks = [];
   hover = null;
@@ -213,12 +217,21 @@ function restart(): void {
   muteButton.classList.remove('selected');
   updateHud();
   updateInfo();
+  window.__drumline = { sim, scheduler, audio };
+}
+
+function restart(): void {
+  resetRun(sim.difficulty);
+  showStartOverlay();
+}
+
+function chooseDifficulty(id: DifficultyId): void {
+  resetRun(DIFFICULTIES[id]);
   if (started) {
     hideOverlay();
   } else {
-    showStartOverlay();
+    void startGame();
   }
-  window.__drumline = { sim, scheduler, audio };
 }
 
 function cellAt(event: PointerEvent | MouseEvent): { col: number; row: number } | null {
@@ -260,9 +273,8 @@ canvas.addEventListener('pointerleave', () => {
   updateInfo();
 });
 
-overlay.addEventListener('click', () => {
-  if (!started) void startGame();
-});
+easyButton.addEventListener('click', () => chooseDifficulty('easy'));
+hardButton.addEventListener('click', () => chooseDifficulty('hard'));
 
 kickButton.addEventListener('click', () => selectTool('kick'));
 hatButton.addEventListener('click', () => selectTool('hat'));
@@ -280,6 +292,12 @@ restartButton.addEventListener('click', restart);
 
 window.addEventListener('keydown', (event) => {
   if (event.repeat) return;
+  if (!overlay.classList.contains('hidden') && !overlay.classList.contains('passive')) {
+    const key = event.key.toLowerCase();
+    if (key === 'e') chooseDifficulty('easy');
+    if (key === 'h') chooseDifficulty('hard');
+    return;
+  }
   if (event.code === 'Space') {
     event.preventDefault();
     sim.startWave();

@@ -1,19 +1,18 @@
 import {
   CHORD_BONUS_PER_TOWER,
   CHORD_MAX_TOWERS,
+  DIFFICULTIES,
   ENEMIES,
   GRID_COLS,
   GRID_ROWS,
   PATH_WAYPOINTS,
   SELL_REFUND,
-  START_LIVES,
-  START_MONEY,
   STEPS_PER_BAR,
   TOWERS,
-  WAVES,
-  WAVE_CLEAR_BONUS,
+  type Difficulty,
   type WaveGroup,
 } from './config';
+import { buildWaves } from './waves';
 
 export type TowerType = 'kick' | 'hat' | 'synth';
 export type EnemyType = 'blip' | 'runner' | 'brute' | 'boss';
@@ -141,6 +140,7 @@ export function pathPoint(progress: number): PathPoint {
 interface Spawn {
   type: EnemyType;
   atStep: number;
+  hp: number;
 }
 
 function distance(x1: number, y1: number, x2: number, y2: number): number {
@@ -155,6 +155,8 @@ function firesThisStep(type: TowerType, col: number, stepIndex: number): boolean
 }
 
 export class Sim {
+  readonly difficulty: Difficulty;
+  readonly waves: WaveGroup[][];
   money: number;
   lives: number;
   wave: number;
@@ -168,9 +170,11 @@ export class Sim {
   private spawnQueue: Spawn[];
   private waveStartPending: boolean;
 
-  constructor() {
-    this.money = START_MONEY;
-    this.lives = START_LIVES;
+  constructor(difficulty: Difficulty = DIFFICULTIES.hard) {
+    this.difficulty = difficulty;
+    this.waves = buildWaves(difficulty);
+    this.money = difficulty.startMoney;
+    this.lives = difficulty.startLives;
     this.wave = 0;
     this.phase = 'build';
     this.stepIndex = 0;
@@ -215,12 +219,12 @@ export class Sim {
 
   startWave(): boolean {
     if (this.phase !== 'build') return false;
-    if (this.wave >= WAVES.length) return false;
+    if (this.wave >= this.waves.length) return false;
     this.wave += 1;
     this.phase = 'wave';
     this.waveStartPending = true;
 
-    const groups: WaveGroup[] = WAVES[this.wave - 1] ?? [];
+    const groups: WaveGroup[] = this.waves[this.wave - 1] ?? [];
     const stepsUntilBar = (STEPS_PER_BAR - this.stepIndex) % STEPS_PER_BAR;
     let groupStart = this.totalSteps + stepsUntilBar;
     this.spawnQueue = [];
@@ -230,6 +234,7 @@ export class Sim {
         this.spawnQueue.push({
           type: group.type,
           atStep: groupStart + i * group.gapSteps,
+          hp: group.hp,
         });
       }
       const lastSpawnOffset = group.count > 0 ? (group.count - 1) * group.gapSteps : 0;
@@ -244,12 +249,11 @@ export class Sim {
     if (due.length === 0) return;
     this.spawnQueue = this.spawnQueue.filter((spawn) => spawn.atStep > this.totalSteps);
     for (const spawn of due) {
-      const stats = ENEMIES[spawn.type];
       this.enemies.push({
         id: this.nextEnemyId,
         type: spawn.type,
-        hp: stats.hp,
-        maxHp: stats.hp,
+        hp: spawn.hp,
+        maxHp: spawn.hp,
         progress: 0,
       });
       this.nextEnemyId += 1;
@@ -439,9 +443,9 @@ export class Sim {
       this.spawnQueue.length === 0 &&
       this.enemies.length === 0
     ) {
-      this.money += WAVE_CLEAR_BONUS;
+      this.money += this.difficulty.waveBonus;
       events.push({ kind: 'waveClear', wave: this.wave });
-      if (this.wave === WAVES.length) {
+      if (this.wave === this.waves.length) {
         this.phase = 'won';
         events.push({ kind: 'won' });
       } else {
