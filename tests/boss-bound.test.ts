@@ -6,10 +6,10 @@ import { bossBound, bossWaves } from '../tools/playtest/bound';
 const expected = [
   ['hard', 10, 1862, 814, 6321],
   ['hard', 20, 8350, 1879, 12056],
-  ['hard', 30, 14000, 3256, 16679],
+  ['hard', 30, 13000, 3256, 16679],
   ['easy', 10, 1303, 1044, 7691],
   ['easy', 20, 5845, 2309, 13636],
-  ['easy', 30, 9800, 3886, 18247],
+  ['easy', 30, 9100, 3886, 18247],
 ] as const;
 
 describe('boss bound', () => {

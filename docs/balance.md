@@ -72,7 +72,7 @@ more, and enemy numbers are what grow income.
 | `waves` | 30 | Run length |
 | `bossEvery` | 10 | Bosses at waves 10, 20, and 30 |
 | `bossBudget` | 1 | Boss waves use a normal budget |
-| `bossHealthCap` | 14,000 | Highest boss health on Hard, scaled by `healthScale`, so the final boss can be killed |
+| `bossHealthCap` | 13,000 | Highest boss health on Hard, scaled by `healthScale`, so the final boss can be killed |
 | `baseHealth` | 240 | Wave 1 budget |
 | `ramp` | 0.3 | Steady early growth |
 | `growth` | 1.10 | 10% compounding growth per wave |
@@ -92,7 +92,7 @@ more, and enemy numbers are what grow income.
 | 20 | 9,834 | Boss, 8,350 HP; 10 runners, 148 HP |
 | 25 | 19,384 | 22 blips, 881 HP |
 | 29 | 32,534 | 15 blips, 1,600 HP; 10 runners, 853 HP |
-| 30 | 36,929 | Boss, 14,000 HP; 13 runners, 533 HP |
+| 30 | 36,929 | Boss, 13,000 HP; 13 runners, 533 HP |
 
 Easy uses the same waves with 70% of this health. The final boss is capped, so wave 30 has less
 total health than its budget.
@@ -119,7 +119,7 @@ too far or the target needs to move.
 | Hard | Spread | Lost at wave 28 | 58 | 16.6 min |
 | Hard | Stack | Lost at wave 29 | 61 | 15.9 min |
 | Easy | Casual | Lost at wave 21 | 21 | 13.4 min |
-| Easy | Spread | Won with 30 lives | 78 | 12.8 min |
+| Easy | Spread | Won with 30 lives | 78 | 12.7 min |
 | Easy | Stack | Won with 30 lives | 63 | 12.7 min |
 
 Times count wave play only, not time spent building. Runs take half as long at 240 BPM. With
@@ -150,9 +150,16 @@ time. A player who needs longer can turn **Auto** off.
 - **`enemiesPerWave` is really an income setting.** At 0.8 with higher bonuses, bots filled 78 of
   85 cells on Hard, well past the two-thirds target.
 - **The final boss needs a cap.** Boss health follows the wave budget, but board damage is limited
-  by the 85 buildable cells. A `bossHealthCap` sweep on 2026-11-01 chose 14,000: the best random bot
-  deals 87% of that, and it is 84% of the 16,679 damage a board bought with all possible income can
-  deal.
+  by the 85 buildable cells. A `bossHealthCap` sweep on 2026-11-01 chose 14,000, but 258,000 search
+  games then failed to win at that value. At 13,000, the best search builds win Hard with 2 lives
+  left, while the best random bot deals 93% of the boss's health. That is 78% of the 16,679 damage
+  a board bought with all possible income can deal.
+- **Hats are mandatory on Hard.** With hats banned, the best build found stops at wave 20. Banning
+  kicks costs about one wave, and banning synths costs almost nothing. Hats keep chords at full
+  strength, so their value is higher than their damage share suggests.
+- **Spread builds beat focused ones.** On Hard, no build with 60% or more of its towers in one
+  `col % 4` group passed wave 20, and spending 60% or more on kicks also stopped there. Several
+  spread mixes reached wave 30, from 13/17/28 to 26/27/14 kicks, hats, and synths.
 
 ## How to retune
 
@@ -199,10 +206,12 @@ Bloons figure, but on top of it, `ramp` adds extra growth in the early waves.
 
 - **Human testing:** the bots are a stand-in. Hard is meant to be beatable by a thoughtful player,
   and that has not been proven.
-- **Hard is unproven:** the final boss can now be killed, but no bot has won Hard. The strategy
-  search still has to show that strong play can.
+- **Hard is a narrow win:** the best search builds win with 2 lives left. That margin comes from
+  bots, so a person still has to show that Hard can be won.
 - **Easy's strong bots lose no lives:** both win with all 30 lives now that they kill the final boss.
   Easy may be too easy for a player who builds well.
+- **Easy has a skill cliff:** Casual bots win 0% of games and die at waves 22 to 25, while Competent
+  bots, which buy up to 3 towers a wave, win 100%. There is little between the two.
 - **Late collapse on Hard:** runs hold steady and then fall apart quickly. If that feels abrupt,
   lower `growth` and raise `ramp`.
 - **Stacking:** the stack bot survives one wave longer than the spread bot on Hard, so the gap

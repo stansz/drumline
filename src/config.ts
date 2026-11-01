@@ -104,7 +104,7 @@ export const WAVE_CURVE: WaveCurve = {
   waves: 30,
   bossEvery: 10,
   bossBudget: 1,
-  bossHealthCap: 14000,
+  bossHealthCap: 13000,
   baseHealth: 240,
   ramp: 0.3,
   growth: 1.1,
