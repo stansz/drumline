@@ -1,5 +1,8 @@
 import { BPM, stepSeconds } from './config';
 
+// How far ahead steps are scheduled. Slow phones can stall for this long without a late note.
+const LOOKAHEAD_SECONDS = 0.15;
+
 export class Scheduler {
   bpm: number;
   lastStepTime: number;
@@ -23,7 +26,7 @@ export class Scheduler {
 
   start(): void {
     if (this.timer !== null) return;
-    this.nextStepTime = this.ctx.currentTime + 0.06;
+    this.nextStepTime = this.ctx.currentTime + LOOKAHEAD_SECONDS;
     this.lastStepTime = this.nextStepTime;
     this.stepDuration = stepSeconds(this.bpm);
     this.timer = setInterval(() => this.tick(), 25);
@@ -37,9 +40,9 @@ export class Scheduler {
 
   private tick(): void {
     if (this.nextStepTime < this.ctx.currentTime - 0.2) {
-      this.nextStepTime = this.ctx.currentTime + 0.06;
+      this.nextStepTime = this.ctx.currentTime + LOOKAHEAD_SECONDS;
     }
-    while (this.nextStepTime < this.ctx.currentTime + 0.06) {
+    while (this.nextStepTime < this.ctx.currentTime + LOOKAHEAD_SECONDS) {
       this.stepDuration = stepSeconds(this.bpm);
       this.lastStepTime = this.nextStepTime;
       this.onStep(this.nextStepTime, this.stepDuration);

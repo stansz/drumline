@@ -49,4 +49,25 @@ describe('Scheduler', () => {
       expect(time).toBeGreaterThanOrEqual(ctx.currentTime);
     }
   });
+
+  it('stays ahead of the audio clock through 120 ms stalls', () => {
+    const ctx = { currentTime: 0 };
+    let late = 0;
+    let steps = 0;
+    const scheduler = new Scheduler(ctx, (time) => {
+      steps += 1;
+      if (time < ctx.currentTime) late += 1;
+    });
+    scheduler.start();
+
+    for (let i = 0; i < 40; i += 1) {
+      ctx.currentTime += 0.12;
+      vi.advanceTimersByTime(25);
+    }
+
+    scheduler.stop();
+
+    expect(steps).toBeGreaterThan(30);
+    expect(late).toBe(0);
+  });
 });

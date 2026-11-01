@@ -23,6 +23,11 @@ export const SELL_REFUND = 0.7;
 export const CHORD_BONUS_PER_TOWER = 0.25;
 export const CHORD_MAX_TOWERS = 4;
 
+// How many of each sound can start on one step, because each one costs audio CPU.
+// Towers past the limit still fire and deal damage.
+export const TOWER_VOICE_LIMITS: Record<TowerType, number> = { kick: 2, hat: 2, synth: 3 };
+export const KILL_VOICE_LIMIT = 2;
+
 export interface TowerStats {
   cost: number;
   range: number;

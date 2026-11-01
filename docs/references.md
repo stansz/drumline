@@ -26,7 +26,8 @@ How Drumline's code fits together. [AGENTS.md](../AGENTS.md) holds the rules.
 
 ## How a step works
 
-1. `Scheduler` calls `onStep` in `src/main.ts` slightly before the step is due to play.
+1. `Scheduler` calls `onStep` in `src/main.ts` slightly before the step is due to play. That lead is
+   `LOOKAHEAD_SECONDS`.
 2. `onStep` schedules the music, calls `sim.step()`, and schedules each note at the step's audio
    time.
 3. Events wait in `queued`, and `frame()` hands them to the renderer once audio time reaches them.
@@ -57,6 +58,18 @@ scales.
 
 The step strip above the board is DOM. `main.ts` lights the playhead's step, and outlines the steps
 that the hovered or inspected tower plays on.
+
+## Audio load
+
+Each sound costs audio CPU, and phones run out long before desktops. On one desktop core, a 75-tower
+board took about 70% before voice limits and 28% after, and Techno went from 102% to 42%.
+
+- `pickVoices` caps each instrument per step with `TOWER_VOICE_LIMITS`. Towers past the limit still
+  fire and deal damage. `playNote` gets the number of voices played, not the chord size, so a capped
+  chord stays about as loud.
+- Don't add automation to long-lived `AudioParam`s on every step. Those events add up over a run.
+- The game uses `latencyHint: 'playback'`, because nothing depends on tapping in time. `frame()`
+  subtracts the output latency, so the board matches what's heard.
 
 ## Saved settings
 

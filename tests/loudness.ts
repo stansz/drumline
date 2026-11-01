@@ -5,11 +5,12 @@ import { Audio_ } from '../src/audio';
 import {
   GRID_COLS,
   GRID_ROWS,
+  KILL_VOICE_LIMIT,
   STEPS_PER_BAR,
   TOWERS,
   stepSeconds,
 } from '../src/config';
-import { intensity, layerLevels } from '../src/music';
+import { intensity, layerLevels, pickVoices } from '../src/music';
 import { Sim, type TowerType } from '../src/sim';
 import { DEFAULT_THEME, THEMES, type Theme } from '../src/themes';
 import { NEON_BASELINE } from './loudness-baseline';
@@ -118,12 +119,14 @@ async function renderBoard(
   for (let musicStep = 0; musicStep < STEPS_PER_BAR * BARS; musicStep += 1) {
     const time = musicStep * duration;
     audio.playMusicStep(musicStep, time, duration, levels);
-    for (const event of sim.step()) {
-      if (event.kind === 'note') {
-        audio.playNote(event.towerType, event.row, time, true, event.chordSize);
-      }
+    const notes = sim
+      .step()
+      .filter((event) => event.kind === 'note');
+    const voices = pickVoices(notes);
+    for (const voice of voices) {
+      audio.playNote(voice.towerType, voice.row, time, true, voices.length);
     }
-    for (let kill = 0; kill < KILLS_PER_STEP; kill += 1) {
+    for (let kill = 0; kill < Math.min(KILLS_PER_STEP, KILL_VOICE_LIMIT); kill += 1) {
       audio.playKill(time);
     }
   }

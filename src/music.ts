@@ -1,4 +1,5 @@
-import { MUSIC_CHORDS, STEPS_PER_BAR } from './config';
+import { MUSIC_CHORDS, STEPS_PER_BAR, TOWER_VOICE_LIMITS } from './config';
+import type { TowerType } from './sim';
 
 export function midiToHz(midi: number): number {
   return 440 * 2 ** ((midi - 69) / 12);
@@ -35,4 +36,25 @@ export function arpNote(
   const pad = chordForStep(musicStep, chords).pad;
   const index = Math.floor(musicStep / rate) % pad.length;
   return (pad[index] ?? pad[0] ?? 0) + 12;
+}
+
+// Chooses which notes to sound on a step. Notes that hit come first, and the rest of each
+// instrument's limit is spread across its notes, so a big chord keeps its range of pitches.
+export function pickVoices<T extends { towerType: TowerType; hit: boolean }>(
+  notes: readonly T[],
+): T[] {
+  const voices: T[] = [];
+  for (const type of ['kick', 'hat', 'synth'] as const) {
+    const group = notes.filter((note) => note.towerType === type);
+    const hits = group.filter((note) => note.hit);
+    const limit = TOWER_VOICE_LIMITS[type];
+    const pool =
+      hits.length >= limit ? hits : [...hits, ...group.filter((note) => !note.hit)];
+    const count = Math.min(limit, pool.length);
+    for (let i = 0; i < count; i += 1) {
+      const note = pool[Math.floor((i * pool.length) / count)];
+      if (note) voices.push(note);
+    }
+  }
+  return voices;
 }

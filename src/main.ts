@@ -3,6 +3,7 @@ import {
   BPM,
   CHORD_BONUS_PER_TOWER,
   DIFFICULTIES,
+  KILL_VOICE_LIMIT,
   SPEED_BPMS,
   GRID_COLS,
   GRID_ROWS,
@@ -13,7 +14,7 @@ import {
   type Difficulty,
   type DifficultyId,
 } from './config';
-import { intensity, layerLevels } from './music';
+import { intensity, layerLevels, pickVoices } from './music';
 import { Renderer, drawIcon, drawLogo } from './render';
 import { Scheduler } from './scheduler';
 import { Sim, firesThisStep, type SimEvent, type TowerType } from './sim';
@@ -167,6 +168,8 @@ function showEndOverlay(message: string, detail: string): void {
   overlay.classList.add('passive');
 }
 
+type NoteEvent = Extract<SimEvent, { kind: 'note' }>;
+
 function onStep(time: number, duration: number): void {
   if (!audio) return;
   const step = sim.stepIndex;
@@ -179,11 +182,16 @@ function onStep(time: number, duration: number): void {
   audio.setTempo(duration);
   stepMarks.push({ at: time, step });
   const events = sim.step();
+  const notes = events.filter((event): event is NoteEvent => event.kind === 'note');
+  const voices = pickVoices(notes);
+  for (const voice of voices) {
+    audio.playNote(voice.towerType, voice.row, time, voice.hit, voices.length);
+  }
+  let kills = 0;
   for (const event of events) {
-    if (event.kind === 'note') {
-      audio.playNote(event.towerType, event.row, time, event.hit, event.chordSize);
-    } else if (event.kind === 'kill') {
+    if (event.kind === 'kill' && kills < KILL_VOICE_LIMIT) {
       audio.playKill(time);
+      kills += 1;
     } else if (event.kind === 'leak') {
       audio.playLeak(time);
     }
@@ -197,7 +205,7 @@ async function startGame(): Promise<void> {
   if (started) return;
   started = true;
   try {
-    const ctx = new AudioContext();
+    const ctx = new AudioContext({ latencyHint: 'playback' });
     audioContext = ctx;
     await ctx.resume();
     audio = new Audio_(ctx);
@@ -450,7 +458,9 @@ window.addEventListener('keydown', (event) => {
 });
 
 function frame(): void {
-  const now = audioContext ? audioContext.currentTime : 0;
+  // Sound reaches the speakers after the audio clock, so draw at the time being heard.
+  const latency = audioContext ? audioContext.outputLatency || audioContext.baseLatency || 0 : 0;
+  const now = audioContext ? Math.max(0, audioContext.currentTime - latency) : 0;
   while (stepMarks.length > 0) {
     const mark = stepMarks[0];
     if (!mark || mark.at > now) break;

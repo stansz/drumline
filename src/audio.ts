@@ -99,6 +99,8 @@ export class Audio_ {
   private readonly masterLevel = 0.8;
   private theme: Theme = DEFAULT_THEME;
   private muted = false;
+  private lastDuckTime = -1;
+  private lastStepDuration = 0;
 
   constructor(ctx: AudioContext) {
     this.ctx = ctx;
@@ -288,8 +290,11 @@ export class Audio_ {
     const baseLevel = (hit ? 1 : 0.6) / Math.sqrt(Math.max(1, chordSize));
     const level = baseLevel * (0.9 + Math.random() * 0.2);
     if (towerType === 'kick') {
-      this.musicBus.gain.setValueAtTime(1 - MIX.duckAmount, time);
-      this.musicBus.gain.linearRampToValueAtTime(1, time + MIX.duckRelease);
+      if (time !== this.lastDuckTime) {
+        this.lastDuckTime = time;
+        this.musicBus.gain.setValueAtTime(1 - MIX.duckAmount, time);
+        this.musicBus.gain.linearRampToValueAtTime(1, time + MIX.duckRelease);
+      }
       this.playKick(row, time, level);
     } else if (towerType === 'hat') {
       this.playHat(row, time, level);
@@ -617,6 +622,8 @@ export class Audio_ {
   }
 
   setTempo(stepDuration: number): void {
+    if (stepDuration === this.lastStepDuration) return;
+    this.lastStepDuration = stepDuration;
     this.delay.delayTime.setTargetAtTime(stepDuration * 3, this.ctx.currentTime, 0.05);
   }
 
