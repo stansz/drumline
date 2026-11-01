@@ -3,7 +3,7 @@
 DrumlineTD is a browser tower defense game where the towers play a 16-step sequencer. It uses
 TypeScript, Vite, Canvas, and Web Audio, with no framework or runtime dependencies.
 
-Commands: `npm run dev`, `npm test`, `npm run typecheck`, `npm run build`, `npm run playtest`,
+Commands: `npm run dev`, `npm test`, `npm run test:sandbox`, `npm run typecheck`, `npm run build`, `npm run playtest`,
 `npm run playtest:report`, `npm run playtest:sweep`, `npm run playtest:search`,
 `npm run playtest:tiers`.
 Pushing to `main` deploys to GitHub Pages, and a failing test blocks the deploy.
@@ -38,7 +38,9 @@ Pushing to `main` deploys to GitHub Pages, and a failing test blocks the deploy.
 - Don't weaken `tests/balance.test.ts` to get a change through.
 - Vitest has no Web Audio or DOM, so unit test audio logic through exported pure functions. Check
   UI and audio changes in a browser.
-- On Windows, Vite and Vitest fail with `spawn EPERM` inside the `dsh --profile headless` sandbox.
-  Run them outside it, and don't work around the error.
+- On Windows, `npm test` and `npm run build` fail with `spawn EPERM` inside the
+  `dsh --profile headless` sandbox. Use `npm run test:sandbox` there, and still run `npm test`
+  outside the sandbox before committing. Don't widen the sandbox, set `NODE_OPTIONS`, or stub
+  modules.
 - Update the matching doc in the same change: `README.md` for controls, modes, or commands, the
   docs above for their topics, and this file for rules.

@@ -21,6 +21,8 @@ How Drumline's code fits together. [AGENTS.md](../AGENTS.md) holds the rules.
   in the docs.
 - `tools/playtest/`: headless balance harness. See [Playtest harness](#playtest-harness).
 - `tests/fixtures/`: expert build plans from the strategy search, replayed by `tests/balance.test.ts`.
+- `vitest.sandbox.config.mjs`: runs the tests inside the Windows `dsh` sandbox, through
+  `npm run test:sandbox`.
 - `tests/loudness.ts`: browser-only audio check, with Neon's target levels stored in
   `tests/loudness-baseline.ts`.
 - `.handoff/`: specs for work handed to another agent. The `plan*.md` files are tracked, while
