@@ -1,4 +1,4 @@
-# Drumline
+# DrumlineTD
 
 A tower defense game where your defense plays the music.
 
@@ -61,3 +61,7 @@ npm run build
 Pushing to `main` deploys that site to GitHub Pages through the included
 workflow. [docs/references.md](docs/references.md) describes how the code fits
 together.
+
+## Credits
+
+The Silkscreen and VT323 fonts are used under the SIL Open Font License. Their licenses are in `src/fonts/`.

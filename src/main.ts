@@ -14,9 +14,10 @@ import {
   type DifficultyId,
 } from './config';
 import { intensity, layerLevels } from './music';
-import { Renderer } from './render';
+import { Renderer, drawIcon, drawLogo } from './render';
 import { Scheduler } from './scheduler';
-import { Sim, type SimEvent, type TowerType } from './sim';
+import { Sim, firesThisStep, type SimEvent, type TowerType } from './sim';
+import type { SpriteName } from './sprites';
 import { DEFAULT_THEME, nextTheme, themeById, type Theme } from './themes';
 import './style.css';
 
@@ -39,6 +40,8 @@ const waveEl = byId<HTMLSpanElement>('wave');
 const infoEl = byId<HTMLParagraphElement>('info');
 const overlay = byId<HTMLDivElement>('overlay');
 const overlayText = byId<HTMLDivElement>('overlay-text');
+const overlayDetail = byId<HTMLDivElement>('overlay-detail');
+const stepsEl = byId<HTMLDivElement>('steps');
 const kickButton = byId<HTMLButtonElement>('tool-kick');
 const hatButton = byId<HTMLButtonElement>('tool-hat');
 const synthButton = byId<HTMLButtonElement>('tool-synth');
@@ -75,19 +78,21 @@ let playhead = 0;
 let theme = loadTheme();
 let autoWave = loadAutoWave();
 let volume = loadVolume();
+const stepLeds: HTMLSpanElement[] = [];
+let litStep = -1;
 
 window.__drumline = { sim, scheduler, audio };
 
 function updateHud(): void {
   moneyEl.textContent = `$${sim.money}`;
-  livesEl.textContent = `${sim.lives} lives`;
-  waveEl.textContent = `Wave ${sim.wave}/${sim.waves.length}`;
+  livesEl.textContent = String(sim.lives);
+  waveEl.textContent = `${String(sim.wave).padStart(2, '0')}/${sim.waves.length}`;
   startWaveButton.disabled = sim.phase !== 'build';
   const stepsLeft = sim.stepsUntilNextWave();
   startWaveButton.textContent =
     stepsLeft === null
       ? 'Start wave'
-      : `Next in ${Math.max(1, Math.ceil(stepsLeft * stepSeconds(currentBpm())))}s`;
+      : `Next ${Math.max(1, Math.ceil(stepsLeft * stepSeconds(currentBpm())))}s`;
 }
 
 function towerAt(cell: { col: number; row: number } | null) {
@@ -95,7 +100,22 @@ function towerAt(cell: { col: number; row: number } | null) {
   return sim.towers.find((tower) => tower.col === cell.col && tower.row === cell.row) ?? null;
 }
 
+function updateStepHints(): void {
+  const tower = towerAt(hover) ?? towerAt(inspect);
+  const previewing =
+    !tower && hover && selected && selected !== 'sell' && sim.canPlace(hover.col, hover.row);
+  const type = tower ? tower.type : previewing ? selected : null;
+  const col = tower ? tower.col : (hover?.col ?? 0);
+  stepLeds.forEach((led, step) => {
+    led.classList.toggle(
+      'fires',
+      type !== null && type !== 'sell' && firesThisStep(type, col, step),
+    );
+  });
+}
+
 function updateInfo(): void {
+  updateStepHints();
   const tower = towerAt(hover) ?? towerAt(inspect);
   if (tower) {
     const info = TOWER_INFO[tower.type];
@@ -130,7 +150,8 @@ function selectTool(tool: TowerType | 'sell' | null): void {
 }
 
 function showStartOverlay(): void {
-  overlayText.textContent = 'Choose a difficulty';
+  overlayText.textContent = 'Your defense plays the music.';
+  overlayDetail.textContent = '';
   overlay.classList.remove('hidden', 'passive');
 }
 
@@ -139,8 +160,9 @@ function hideOverlay(): void {
   overlay.classList.remove('passive');
 }
 
-function showEndOverlay(message: string): void {
+function showEndOverlay(message: string, detail: string): void {
   overlayText.textContent = message;
+  overlayDetail.textContent = detail;
   overlay.classList.remove('hidden');
   overlay.classList.add('passive');
 }
@@ -247,8 +269,8 @@ function loadAutoWave(): boolean {
 }
 
 function updateAutoWaveButton(): void {
-  autoWaveButton.textContent = autoWave ? 'Auto: On' : 'Auto: Off';
   autoWaveButton.classList.toggle('selected', autoWave);
+  autoWaveButton.setAttribute('aria-pressed', String(autoWave));
 }
 
 function toggleAutoWave(): void {
@@ -435,15 +457,20 @@ function frame(): void {
     stepMarks.shift();
     playhead = mark.step;
   }
+  if (playhead !== litStep) {
+    stepLeds[litStep]?.classList.remove('on');
+    stepLeds[playhead]?.classList.add('on');
+    litStep = playhead;
+  }
   while (queued.length > 0) {
     const item = queued[0];
     if (!item || item.at > now) break;
     queued.shift();
     renderer.spawnEffect(item.event);
     if (item.event.kind === 'won') {
-      showEndOverlay('You won');
+      showEndOverlay('You won', `All ${sim.waves.length} waves cleared`);
     } else if (item.event.kind === 'lost') {
-      showEndOverlay('Game over');
+      showEndOverlay('Game over', `Reached wave ${sim.wave}/${sim.waves.length}`);
     }
   }
   renderer.draw({
@@ -467,6 +494,36 @@ const costButtons: Array<[HTMLButtonElement, TowerType]> = [
 for (const [button, type] of costButtons) {
   const cost = button.querySelector<HTMLElement>('.cost');
   if (cost) cost.textContent = `$${TOWERS[type].cost}`;
+}
+
+document.querySelectorAll<HTMLCanvasElement>('canvas.logo').forEach((logo) => {
+  drawLogo(logo);
+});
+document.querySelectorAll<HTMLCanvasElement>('canvas[data-sprite]').forEach((icon) => {
+  drawIcon(icon, icon.dataset.sprite as SpriteName);
+});
+
+const sellCost = sellButton.querySelector<HTMLElement>('.cost');
+if (sellCost) sellCost.textContent = `${Math.round(SELL_REFUND * 100)}%`;
+
+const modeButtons: Array<[HTMLButtonElement, Difficulty]> = [
+  [easyButton, DIFFICULTIES.easy],
+  [hardButton, DIFFICULTIES.hard],
+];
+for (const [button, difficulty] of modeButtons) {
+  const detail = button.querySelector('small');
+  if (detail) detail.textContent = `${difficulty.startLives} lives · $${difficulty.startMoney}`;
+}
+
+for (let i = 0; i < 16; i += 1) {
+  const step = document.createElement('span');
+  step.className = `g${Math.floor(i / 4)}`;
+  const led = document.createElement('i');
+  const number = document.createElement('em');
+  number.textContent = i % 4 === 0 ? String(i + 1) : '';
+  step.append(led, number);
+  stepsEl.append(step);
+  stepLeds.push(step);
 }
 
 updateHud();

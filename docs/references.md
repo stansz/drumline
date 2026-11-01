@@ -12,7 +12,10 @@ How Drumline's code fits together. [AGENTS.md](../AGENTS.md) holds the rules.
 - `src/audio.ts`: `Audio_`, which owns the audio chain and every generated sound.
 - `src/music.ts`: chords, arpeggios, and how the backing music builds up.
 - `src/themes.ts`: one entry for each music theme.
-- `src/render.ts`: draws the board and effects on the canvas.
+- `src/render.ts`: draws the board into a 256×128 buffer, then scales it onto the canvas.
+- `src/sprites.ts`: colors, sprites, and bitmap letters, stored as data.
+- `src/pixel.ts`: pixel line, circle, and dither helpers with no DOM.
+- `src/fonts/`: self-hosted fonts and their licenses.
 - `src/main.ts`: connects everything, and handles input, the HUD, and saved settings.
 - `tests/bots.ts`: scripted players used by `tests/balance.test.ts`. The `chord` bot is called Stack
   in the docs.
@@ -44,6 +47,16 @@ tower, music, and fx buses → master → trim → crusher → filter → limite
 - The player's volume slider sits after the limiter, so it never changes the mix. It only turns the
   sound down from full level, and the loudness page renders at full level.
 - Changing Neon or the shared chain means refreshing `tests/loudness-baseline.ts`.
+
+## Visuals
+
+`Renderer` draws into a 256×128 buffer, one 16px tile per board cell. `present()` scales that up by a
+whole number to at least the canvas's displayed size, then CSS scales it to fit. This keeps every art
+pixel the same size at any width, which `image-rendering: pixelated` can't promise at fractional
+scales.
+
+The step strip above the board is DOM. `main.ts` lights the playhead's step, and outlines the steps
+that the hovered or inspected tower plays on.
 
 ## Saved settings
 

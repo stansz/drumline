@@ -3,38 +3,59 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Drumline</title>
+    <meta name="description" content="DrumlineTD is a tower defense game where your defense plays the music." />
+    <meta name="theme-color" content="#14131a" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <title>DrumlineTD</title>
   </head>
   <body>
     <div id="app">
-      <header id="hud">
-        <span id="money">$100</span>
-        <span id="lives">20 lives</span>
-        <span id="wave">Wave 0/30</span>
-        <button id="theme" type="button" aria-label="Change music theme">♪ Neon</button>
-        <input id="volume" type="range" min="0" max="100" step="1" value="100" aria-label="Volume" title="Volume" />
+      <header id="hud" class="faceplate">
+        <canvas class="logo" role="img" aria-label="DrumlineTD"></canvas>
+        <div class="lcds">
+          <div class="lcd"><small>Cash</small><span id="money">$100</span></div>
+          <div class="lcd lives"><small>Lives</small><span id="lives">20</span></div>
+          <div class="lcd wave"><small>Wave</small><span id="wave">00/30</span></div>
+        </div>
+        <div class="sys">
+          <button id="theme" class="hw" type="button" aria-label="Change music theme">♪ Neon</button>
+          <input id="volume" type="range" min="0" max="100" step="1" value="100" aria-label="Volume" title="Volume" />
+        </div>
       </header>
       <main id="stage">
-        <canvas id="game" width="896" height="448" aria-label="Drumline game board"></canvas>
+        <div id="steps" class="steps" aria-hidden="true"></div>
+        <canvas id="game" width="256" height="128" aria-label="DrumlineTD game board"></canvas>
       </main>
-      <p id="info"></p>
-      <div id="controls">
-        <button id="tool-kick" type="button"><span class="glyph kick">●</span> Kick <small class="cost"></small></button>
-        <button id="tool-hat" type="button"><span class="glyph hat">▲</span> Hat <small class="cost"></small></button>
-        <button id="tool-synth" type="button"><span class="glyph synth">◆</span> Synth <small class="cost"></small></button>
-        <button id="tool-sell" type="button">Sell</button>
-        <button id="start-wave" type="button">Start wave</button>
-        <button id="auto-wave" type="button">Auto: On</button>
-        <button id="speed" type="button">120 BPM</button>
-        <button id="mute" type="button">Mute</button>
-        <button id="restart" type="button">Restart</button>
+      <p id="info" class="readout"></p>
+      <div id="controls" class="deck">
+        <div class="bank">
+          <div class="cap">Instruments</div>
+          <div class="pads">
+            <button id="tool-kick" class="pad" type="button"><span class="led"></span><canvas data-sprite="kick" width="16" height="16"></canvas><b>Kick</b><small class="cost"></small><kbd>1</kbd></button>
+            <button id="tool-hat" class="pad" type="button"><span class="led"></span><canvas data-sprite="hat" width="16" height="16"></canvas><b>Hat</b><small class="cost"></small><kbd>2</kbd></button>
+            <button id="tool-synth" class="pad" type="button"><span class="led"></span><canvas data-sprite="synth" width="16" height="16"></canvas><b>Synth</b><small class="cost"></small><kbd>3</kbd></button>
+            <button id="tool-sell" class="pad" type="button"><span class="led"></span><canvas data-sprite="sell" width="16" height="16"></canvas><b>Sell</b><small class="cost"></small><kbd>4</kbd></button>
+          </div>
+        </div>
+        <div class="bank">
+          <div class="cap">Transport</div>
+          <div class="keys">
+            <button id="start-wave" class="hw go" type="button">Start wave</button>
+            <button id="auto-wave" class="hw" type="button">Auto</button>
+            <button id="speed" class="hw" type="button">120 BPM</button>
+            <button id="mute" class="hw" type="button">Mute</button>
+            <button id="restart" class="hw" type="button">Reset</button>
+          </div>
+        </div>
       </div>
     </div>
     <div id="overlay">
-      <div id="overlay-text">Choose a difficulty</div>
+      <canvas class="logo" role="img" aria-label="DrumlineTD"></canvas>
+      <div id="overlay-text">Your defense plays the music.</div>
+      <div id="overlay-detail"></div>
       <div id="mode-buttons">
-        <button id="mode-easy" type="button">Easy</button>
-        <button id="mode-hard" type="button">Hard</button>
+        <button id="mode-easy" class="hw mode" type="button"><span>Easy</span><small></small></button>
+        <button id="mode-hard" class="hw mode" type="button"><span>Hard</span><small></small></button>
       </div>
     </div>
     <script type="module" src="/src/main.ts"></script>

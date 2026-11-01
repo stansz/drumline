@@ -148,7 +148,7 @@ function distance(x1: number, y1: number, x2: number, y2: number): number {
   return Math.hypot(x2 - x1, y2 - y1);
 }
 
-function firesThisStep(type: TowerType, col: number, stepIndex: number): boolean {
+export function firesThisStep(type: TowerType, col: number, stepIndex: number): boolean {
   if (type === 'hat') {
     return (stepIndex - col + STEPS_PER_BAR) % 4 === 0;
   }

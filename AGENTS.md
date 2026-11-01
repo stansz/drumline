@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Drumline is a browser tower defense game where the towers play a 16-step sequencer. It uses
+DrumlineTD is a browser tower defense game where the towers play a 16-step sequencer. It uses
 TypeScript, Vite, Canvas, and Web Audio, with no framework or runtime dependencies.
 
 Commands: `npm run dev`, `npm test`, `npm run typecheck`, `npm run build`. Pushing to `main`
@@ -20,6 +20,11 @@ deploys to GitHub Pages, and a failing test blocks the deploy.
 - `new Sim()` must stay on Hard with `autoWave` off, because bots and tests rely on that.
 - Wrap every `localStorage` call in `try`/`catch`, and make the game work without it.
 - Keep Neon's `space.trim` at 1. It is the loudness reference.
+- Draw the board in whole art pixels. In `src/render.ts`, don't use `arc`, `shadowBlur`,
+  `globalAlpha`, `setLineDash`, `fillText`, or `ctx.scale`.
+- Keep sprites as data in `src/sprites.ts`, and keep `src/pixel.ts` free of the DOM.
+- Keep the `drumline-*` `localStorage` keys and `window.__drumline` names when the game's name
+  changes, so saved settings survive.
 - Don't weaken `tests/balance.test.ts` to get a change through.
 - Vitest has no Web Audio or DOM, so unit test audio logic through exported pure functions. Check
   UI and audio changes in a browser.
