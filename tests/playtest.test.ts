@@ -69,6 +69,14 @@ describe('playGame', () => {
     expect(result.bossDamageByWave['10']).toBeGreaterThanOrEqual(1862);
   });
 
+  it('scores a lost boss wave by the damage dealt to the boss', () => {
+    const result = playGame(policyBot(base(1, 1, 1), rules), DIFFICULTIES.hard, rules, 1);
+    expect(result.result).toBe('lost');
+    expect(result.wave).toBe(30);
+    expect(result.finalWaveProgress).toBeCloseTo((result.bossDamageByWave['30'] ?? 0) / 20500);
+    expect(result.finalWaveProgress).toBeLessThan(1);
+  });
+
   it('reports upgrades above zero for a policy that buys them', () => {
     const policy = { ...base(1, 1, 1), upgradeAt: 10 };
     const result = playGame(policyBot(policy, rules), DIFFICULTIES.hard, rules, 1);

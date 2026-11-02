@@ -292,11 +292,13 @@ export function playGame(
   let upgrades = 0;
   for (const tower of sim.towers) upgrades += tower.level - 1;
 
-  const waveHealth = (sim.waves[sim.wave - 1] ?? []).reduce(
-    (sum, group) => sum + group.hp * group.count,
-    0,
-  );
-  const finalWaveProgress = waveHealth === 0 ? 0 : Math.min(1, waveDamage / waveHealth);
+  const groups = sim.waves[sim.wave - 1] ?? [];
+  const waveHealth = groups.reduce((sum, group) => sum + group.hp * group.count, 0);
+  const boss = groups.find((group) => group.type === 'boss');
+  const waveProgress = boss
+    ? (bossDamageByWave[String(sim.wave)] ?? 0) / boss.hp
+    : waveDamage / (waveHealth || 1);
+  const finalWaveProgress = Math.min(1, waveProgress);
 
   return {
     result: sim.phase,
