@@ -254,7 +254,7 @@ body {
 
 .pads {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 6px;
 }
 
@@ -377,6 +377,10 @@ body {
   --c: var(--cream);
 }
 
+#tool-upgrade {
+  --c: #a6d94a;
+}
+
 /* ---- Overlay ---- */
 #overlay {
   position: fixed;
@@ -492,6 +496,11 @@ body {
     grid-template-columns: 1fr;
     justify-items: center;
     text-align: center;
+    padding-inline: 2px;
+  }
+
+  .pad b {
+    font-size: 0.6rem;
   }
 
   .pad canvas {
@@ -736,10 +745,19 @@ body {
     grid-template-columns: 1fr;
     justify-items: center;
     text-align: center;
+    padding-inline: 1px;
   }
 
   .pad canvas {
     width: 20px;
     height: 20px;
+  }
+
+  .pads {
+    gap: 4px;
+  }
+
+  .pad small {
+    font-size: 0.95rem;
   }
 }

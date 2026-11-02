@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DIFFICULTIES, type Difficulty } from '../src/config';
 import { makeRng, type GameResult, type Policy } from '../tools/playtest/bots';
 import type { BuildPlan } from '../tools/playtest/plans';
-import { buildableCells, recordPlan } from '../tools/playtest/plans';
+import { buildableCells, placeSteps, recordPlan } from '../tools/playtest/plans';
 import { resolveRules } from '../tools/playtest/rules';
 import {
   behaviourOf,
@@ -31,6 +31,7 @@ const base = (kick: number, hat: number, synth: number): Policy => ({
   earlyBias: 0,
   topK: 1,
   maxTowersPerWave: null,
+  upgradeAt: null,
 });
 
 function result(overrides: Partial<GameResult>): GameResult {
@@ -54,6 +55,7 @@ function result(overrides: Partial<GameResult>): GameResult {
     startLives: 20,
     spentByType: { kick: 0, hat: 0, synth: 0 },
     finalWaveProgress: 0,
+    upgrades: 0,
     ...overrides,
   };
 }
@@ -67,6 +69,7 @@ function evaluation(score: number): Evaluation {
     towers: 0,
     mix: { kick: 0, hat: 0, synth: 0 },
     damageByType: { kick: 0, hat: 0, synth: 0 },
+    upgrades: 0,
     behaviour: { kickBin: 0, synthBin: 0, focusBin: 0 },
   };
 }
@@ -140,6 +143,17 @@ describe('behaviourOf', () => {
     );
     expect(behaviour).toEqual({ kickBin: 2, synthBin: 2, focusBin: 1 });
   });
+
+  it('ignores upgrade steps when counting focus', () => {
+    const plan: BuildPlan = [
+      { type: 'hat', col: 0, row: 0 },
+      { type: 'upgrade', col: 0, row: 0 },
+      { type: 'hat', col: 1, row: 0 },
+      { type: 'upgrade', col: 1, row: 0 },
+    ];
+    const behaviour = behaviourOf(plan, result({ towers: 2 }));
+    expect(behaviour.focusBin).toBe(1);
+  });
 });
 
 describe('insertElite', () => {
@@ -180,10 +194,32 @@ describe('mutatePlan', () => {
     const buildable = new Set(buildableCells().map(([col, row]) => `${col},${row}`));
     for (let seed = 0; seed < 200; seed += 1) {
       const mutated = mutatePlan(plan, makeRng(seed), searchConfig);
-      const keys = mutated.map(cellKey);
+      const places = placeSteps(mutated);
+      const keys = places.map(cellKey);
       expect(new Set(keys).size).toBe(keys.length);
       for (const key of keys) expect(buildable.has(key)).toBe(true);
-      for (const step of mutated) expect(step.type).not.toBe('kick');
+      for (const step of places) expect(step.type).not.toBe('kick');
+    }
+  });
+
+  it('keeps upgrade steps on place cells over 200 runs', () => {
+    const plan: BuildPlan = [...seedPlan()];
+    plan.splice(1, 0, { type: 'upgrade', col: plan[0]?.col ?? 0, row: plan[0]?.row ?? 0 });
+    plan.splice(3, 0, { type: 'upgrade', col: plan[2]?.col ?? 0, row: plan[2]?.row ?? 0 });
+    for (let seed = 0; seed < 200; seed += 1) {
+      const mutated = mutatePlan(plan, makeRng(seed), searchConfig);
+      const places = placeSteps(mutated);
+      const keys = places.map(cellKey);
+      expect(new Set(keys).size).toBe(keys.length);
+      expect(new Set(keys).size).toBeGreaterThan(0);
+      const counts = new Map<string, number>();
+      for (const step of mutated) {
+        if (step.type !== 'upgrade') continue;
+        const key = cellKey(step);
+        expect(keys).toContain(key);
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+      for (const count of counts.values()) expect(count).toBeLessThanOrEqual(2);
     }
   });
 

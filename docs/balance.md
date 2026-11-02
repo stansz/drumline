@@ -10,12 +10,13 @@ Last measured 2026-11-01, on these configs:
 
 | Mode | Config hash |
 | --- | --- |
-| Hard | `4ce87782` |
-| Easy | `ddbd5ac2` |
+| Hard | `10f8b9ca` |
+| Easy | `59ff3eda` |
 
-Everything under [Current results](#current-results) was measured on these configs. No human
-playtest has confirmed any of it. Results come from bots, either the scripted ones in `tests/bots.ts`
-or the playtest tools in `tools/playtest/`.
+**Out of date:** [Current results](#current-results) were measured before tower upgrades, on configs
+`4ce87782` for Hard and `ddbd5ac2` for Easy, and will be measured again before this branch is
+finished. No human playtest has confirmed any of it. Results come from bots, either the scripted ones
+in `tests/bots.ts` or the playtest tools in `tools/playtest/`.
 
 Every search report, tier run, and sweep record shows the config it ran on. If a hash there differs
 from this table, the result is out of date. See [Keeping this file current](#keeping-this-file-current).
@@ -96,6 +97,21 @@ at wave 20, and 20 at wave 30, which is all of a Hard run's lives.
 
 Easy uses the same waves with 50% of this health. The final boss is capped, so wave 30 has less
 total health than its budget.
+
+## Tower upgrades
+
+Each tower can reach level 3. A level's price is its `costShare` times the tower's cost.
+
+| Tower | Level 2 | Price | Level 3 | Price |
+| --- | --- | --- | --- | --- |
+| Kick | More damage | $50 | Wider splash and more damage | $100 |
+| Hat | More range | $40 | More damage | $80 |
+| Synth | More damage | $70 | One more chain link | $140 |
+
+The scripted bots in `tests/bots.ts` never buy upgrades. They measure tower-only play, and the
+two-thirds board target in `tests/balance.test.ts` counts their towers, so spending on levels would
+change what that target means. Casual and Competent tiers don't buy upgrades either. Strong starts at
+36 to 60 towers, chosen per game, and Expert follows its plan.
 
 ## Targets
 
@@ -239,7 +255,7 @@ targets aren't in `tools/playtest/targets.ts` yet.
 
 ## Keeping this file current
 
-Any change to tower, enemy, chord, refund, wave, or difficulty values changes a config hash, which
+Any change to tower, upgrade, enemy, chord, refund, wave, or difficulty values changes a config hash, which
 makes the results above out of date. `tests/balance-docs.test.ts` then fails, which blocks the
 deploy, until the hashes in [Status](#status) are updated. In the same change:
 

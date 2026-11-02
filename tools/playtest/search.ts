@@ -1,4 +1,4 @@
-import type { Difficulty, DifficultyId, Rules } from '../../src/config';
+import { MAX_TOWER_LEVEL, type Difficulty, type DifficultyId, type Rules } from '../../src/config';
 import type { TowerType } from '../../src/sim';
 import {
   makeRng,
@@ -8,7 +8,7 @@ import {
   type Policy,
   type Rng,
 } from './bots';
-import { buildableCells, planBot, type BuildPlan } from './plans';
+import { buildableCells, placeSteps, planBot, type BuildPlan, type PlanStep } from './plans';
 import { configHash, type DifficultyPatch, type RulesPatch } from './rules';
 
 export interface SearchConfig {
@@ -37,6 +37,7 @@ export interface Evaluation {
   towers: number;
   mix: Record<TowerType, number>;
   damageByType: Record<TowerType, number>;
+  upgrades: number;
   behaviour: Behaviour;
 }
 
@@ -78,7 +79,7 @@ function allowedTypes(config: SearchConfig): TowerType[] {
 }
 
 function freeCells(plan: BuildPlan): Array<[number, number]> {
-  const used = new Set(plan.map((step) => `${step.col},${step.row}`));
+  const used = new Set(placeSteps(plan).map((step) => `${step.col},${step.row}`));
   return buildableCells().filter(([col, row]) => !used.has(`${col},${row}`));
 }
 
@@ -95,7 +96,7 @@ export function behaviourOf(plan: BuildPlan, result: GameResult): Behaviour {
   const synthBin =
     spentTotal === 0 ? 0 : Math.min(4, Math.floor((result.spentByType.synth / spentTotal) * 5));
 
-  const towers = plan.slice(0, result.towers);
+  const towers = placeSteps(plan).slice(0, result.towers);
   let focusBin = 0;
   if (towers.length > 0) {
     const counts = [0, 0, 0, 0];
@@ -120,6 +121,7 @@ export function evaluatePlan(plan: BuildPlan, difficulty: Difficulty, rules: Rul
     towers: result.towers,
     mix: result.mix,
     damageByType: result.damageByType,
+    upgrades: result.upgrades,
     behaviour: behaviourOf(plan, result),
   };
 }
@@ -157,7 +159,10 @@ type Operation =
   | 'swapOrder'
   | 'insertStep'
   | 'deleteStep'
-  | 'appendSteps';
+  | 'appendSteps'
+  | 'insertUpgrade'
+  | 'deleteUpgrade'
+  | 'appendUpgrades';
 
 const OPERATIONS: Operation[] = [
   'changeType',
@@ -166,10 +171,33 @@ const OPERATIONS: Operation[] = [
   'insertStep',
   'deleteStep',
   'appendSteps',
+  'insertUpgrade',
+  'deleteUpgrade',
+  'appendUpgrades',
 ];
 
 function randomIndex(rng: Rng, length: number): number {
   return Math.floor(rng() * length);
+}
+
+function upgradeCount(plan: BuildPlan, cell: { col: number; row: number }): number {
+  let count = 0;
+  for (const step of plan) {
+    if (step.type !== 'upgrade') continue;
+    if (step.col === cell.col && step.row === cell.row) count += 1;
+  }
+  return count;
+}
+
+function upgradableCells(plan: BuildPlan): Array<PlanStep & { type: TowerType }> {
+  return placeSteps(plan).filter((step) => upgradeCount(plan, step) < MAX_TOWER_LEVEL - 1);
+}
+
+function indexOfStep(plan: BuildPlan, step: PlanStep): number {
+  for (let index = 0; index < plan.length; index += 1) {
+    if (plan[index] === step) return index;
+  }
+  return -1;
 }
 
 function applyOperation(
@@ -182,21 +210,38 @@ function applyOperation(
 
   switch (operation) {
     case 'changeType': {
-      if (plan.length === 0 || types.length === 0) return;
-      const index = randomIndex(rng, plan.length);
+      if (types.length === 0) return;
+      const places = placeSteps(plan);
+      if (places.length === 0) return;
+      const place = places[randomIndex(rng, places.length)];
+      if (!place) return;
       const type = types[randomIndex(rng, types.length)];
-      const step = plan[index];
-      if (step && type) plan[index] = { ...step, type };
+      if (!type) return;
+      const index = indexOfStep(plan, place);
+      if (index < 0) return;
+      plan[index] = { ...place, type };
       return;
     }
     case 'moveCell': {
-      if (plan.length === 0) return;
-      const index = randomIndex(rng, plan.length);
+      const places = placeSteps(plan);
+      if (places.length === 0) return;
+      const place = places[randomIndex(rng, places.length)];
+      if (!place) return;
       const free = freeCells(plan);
       if (free.length === 0) return;
       const cell = free[randomIndex(rng, free.length)];
-      const step = plan[index];
-      if (step && cell) plan[index] = { ...step, col: cell[0], row: cell[1] };
+      if (!cell) return;
+      const index = indexOfStep(plan, place);
+      if (index < 0) return;
+      const oldCol = place.col;
+      const oldRow = place.row;
+      plan[index] = { ...place, col: cell[0], row: cell[1] };
+      for (const step of plan) {
+        if (step.type !== 'upgrade') continue;
+        if (step.col !== oldCol || step.row !== oldRow) continue;
+        step.col = cell[0];
+        step.row = cell[1];
+      }
       return;
     }
     case 'swapOrder': {
@@ -224,7 +269,18 @@ function applyOperation(
     }
     case 'deleteStep': {
       if (plan.length === 0) return;
-      plan.splice(randomIndex(rng, plan.length), 1);
+      const deletedIndex = randomIndex(rng, plan.length);
+      const step = plan[deletedIndex];
+      if (!step) return;
+      plan.splice(deletedIndex, 1);
+      if (step.type === 'upgrade') return;
+      for (let index = plan.length - 1; index >= 0; index -= 1) {
+        const other = plan[index];
+        if (!other) continue;
+        if (other.type !== 'upgrade') continue;
+        if (other.col !== step.col || other.row !== step.row) continue;
+        plan.splice(index, 1);
+      }
       return;
     }
     case 'appendSteps': {
@@ -237,6 +293,39 @@ function applyOperation(
         const cell = free[randomIndex(rng, free.length)];
         if (!type || !cell) return;
         plan.push({ type, col: cell[0], row: cell[1] });
+      }
+      return;
+    }
+    case 'insertUpgrade': {
+      const candidates = upgradableCells(plan);
+      if (candidates.length === 0) return;
+      const place = candidates[randomIndex(rng, candidates.length)];
+      if (!place) return;
+      const placeIndex = indexOfStep(plan, place);
+      if (placeIndex < 0) return;
+      const index = placeIndex + 1 + randomIndex(rng, plan.length - placeIndex);
+      plan.splice(index, 0, { type: 'upgrade', col: place.col, row: place.row });
+      return;
+    }
+    case 'deleteUpgrade': {
+      const indices: number[] = [];
+      plan.forEach((step, index) => {
+        if (step.type === 'upgrade') indices.push(index);
+      });
+      if (indices.length === 0) return;
+      const at = indices[randomIndex(rng, indices.length)];
+      if (at === undefined) return;
+      plan.splice(at, 1);
+      return;
+    }
+    case 'appendUpgrades': {
+      const count = 1 + Math.floor(rng() * 4);
+      for (let i = 0; i < count; i += 1) {
+        const candidates = upgradableCells(plan);
+        if (candidates.length === 0) return;
+        const place = candidates[randomIndex(rng, candidates.length)];
+        if (!place) return;
+        plan.push({ type: 'upgrade', col: place.col, row: place.row });
       }
       return;
     }
@@ -345,6 +434,7 @@ export function formatSearchReport(output: SearchOutput): string {
     lines.push(`| Kick | ${best.mix.kick} |`);
     lines.push(`| Hat | ${best.mix.hat} |`);
     lines.push(`| Synth | ${best.mix.synth} |`);
+    lines.push(`| Upgrades | ${best.upgrades} |`);
     lines.push('');
     const share = damageShareByType(best.damageByType);
     lines.push(

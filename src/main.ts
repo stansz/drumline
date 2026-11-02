@@ -11,13 +11,15 @@ import {
   TOWERS,
   TOWER_INFO,
   stepSeconds,
+  towerStats,
+  upgradeCost,
   type Difficulty,
   type DifficultyId,
 } from './config';
 import { intensity, layerLevels, pickVoices } from './music';
 import { Renderer, drawIcon, drawLogo } from './render';
 import { Scheduler } from './scheduler';
-import { Sim, firesThisStep, type SimEvent, type TowerType } from './sim';
+import { Sim, firesThisStep, type SimEvent, type Tower, type TowerType } from './sim';
 import type { SpriteName } from './sprites';
 import { DEFAULT_THEME, nextTheme, themeById, type Theme } from './themes';
 import './style.css';
@@ -47,6 +49,8 @@ const kickButton = byId<HTMLButtonElement>('tool-kick');
 const hatButton = byId<HTMLButtonElement>('tool-hat');
 const synthButton = byId<HTMLButtonElement>('tool-synth');
 const sellButton = byId<HTMLButtonElement>('tool-sell');
+const upgradeButton = byId<HTMLButtonElement>('tool-upgrade');
+const upgradeCostEl = upgradeButton.querySelector<HTMLElement>('.cost');
 const startWaveButton = byId<HTMLButtonElement>('start-wave');
 const speedButton = byId<HTMLButtonElement>('speed');
 const muteButton = byId<HTMLButtonElement>('mute');
@@ -69,7 +73,7 @@ let audioContext: AudioContext | null = null;
 let started = false;
 let speedIndex = 0;
 let muted = false;
-let selected: TowerType | 'sell' | null = null;
+let selected: TowerType | 'sell' | 'upgrade' | null = null;
 let hover: { col: number; row: number } | null = null;
 let inspect: { col: number; row: number } | null = null;
 let queued: Array<{ at: number; event: SimEvent }> = [];
@@ -103,25 +107,43 @@ function towerAt(cell: { col: number; row: number } | null) {
 
 function updateStepHints(): void {
   const tower = towerAt(hover) ?? towerAt(inspect);
-  const previewing =
-    !tower && hover && selected && selected !== 'sell' && sim.canPlace(hover.col, hover.row);
-  const type = tower ? tower.type : previewing ? selected : null;
+  let previewing: TowerType | null = null;
+  if (!tower && hover) {
+    if (selected === 'kick' || selected === 'hat' || selected === 'synth') {
+      if (sim.canPlace(hover.col, hover.row)) previewing = selected;
+    }
+  }
+  const type: TowerType | null = tower ? tower.type : previewing;
   const col = tower ? tower.col : (hover?.col ?? 0);
   stepLeds.forEach((led, step) => {
-    led.classList.toggle(
-      'fires',
-      type !== null && type !== 'sell' && firesThisStep(type, col, step),
-    );
+    led.classList.toggle('fires', type !== null && firesThisStep(type, col, step));
   });
+}
+
+function towerText(tower: Tower): string {
+  const info = TOWER_INFO[tower.type];
+  const stats = towerStats(sim.rules, tower.type, tower.level);
+  const cost = upgradeCost(sim.rules, tower.type, tower.level);
+  const next =
+    cost === null
+      ? 'Max level'
+      : `Next: level ${tower.level + 1}, $${cost}, ${info.upgrades[tower.level - 1]}`;
+  return `${info.name} · Level ${tower.level} · ${info.role} · ${stats.damage} damage · range ${stats.range} · ${next}`;
 }
 
 function updateInfo(): void {
   updateStepHints();
   const tower = towerAt(hover) ?? towerAt(inspect);
+  if (upgradeCostEl) {
+    const cost = tower ? upgradeCost(sim.rules, tower.type, tower.level) : null;
+    upgradeCostEl.textContent = tower ? (cost === null ? 'MAX' : `$${cost}`) : 'LV+';
+  }
   if (tower) {
-    const info = TOWER_INFO[tower.type];
-    const stats = TOWERS[tower.type];
-    infoEl.textContent = `${info.name} · $${stats.cost} · ${info.role} · ${stats.damage} damage · range ${stats.range} — ${info.description}`;
+    infoEl.textContent = towerText(tower);
+    return;
+  }
+  if (selected === 'upgrade') {
+    infoEl.textContent = 'Click a tower to buy its next level.';
     return;
   }
   if (selected && selected !== 'sell') {
@@ -131,7 +153,7 @@ function updateInfo(): void {
     return;
   }
   if (selected === 'sell') {
-    infoEl.textContent = `Click a tower to sell it for ${Math.round(SELL_REFUND * 100)}% of its cost.`;
+    infoEl.textContent = `Click a tower to sell it for ${Math.round(SELL_REFUND * 100)}% of what you spent on it.`;
     return;
   }
   infoEl.textContent = `${sim.difficulty.name} mode. Towers fire when the playhead reaches their column. Towers firing together form a chord: +${CHORD_BONUS_PER_TOWER * 100}% damage each.`;
@@ -142,9 +164,10 @@ function updateSelection(): void {
   hatButton.classList.toggle('selected', selected === 'hat');
   synthButton.classList.toggle('selected', selected === 'synth');
   sellButton.classList.toggle('selected', selected === 'sell');
+  upgradeButton.classList.toggle('selected', selected === 'upgrade');
 }
 
-function selectTool(tool: TowerType | 'sell' | null): void {
+function selectTool(tool: TowerType | 'sell' | 'upgrade' | null): void {
   selected = tool;
   updateSelection();
   updateInfo();
@@ -362,6 +385,9 @@ canvas.addEventListener('click', (event) => {
   if (selected === 'sell') {
     sim.sellTower(cell.col, cell.row);
     if (inspect && !towerAt(inspect)) inspect = null;
+  } else if (selected === 'upgrade') {
+    sim.upgradeTower(cell.col, cell.row);
+    inspect = towerAt(cell) ? { ...cell } : null;
   } else if (selected) {
     if (towerAt(cell)) {
       inspect = { ...cell };
@@ -392,6 +418,7 @@ kickButton.addEventListener('click', () => selectTool('kick'));
 hatButton.addEventListener('click', () => selectTool('hat'));
 synthButton.addEventListener('click', () => selectTool('synth'));
 sellButton.addEventListener('click', () => selectTool('sell'));
+upgradeButton.addEventListener('click', () => selectTool('upgrade'));
 
 startWaveButton.addEventListener('click', () => {
   sim.startWave();
@@ -436,6 +463,9 @@ window.addEventListener('keydown', (event) => {
       break;
     case '4':
       selectTool('sell');
+      break;
+    case '5':
+      selectTool('upgrade');
       break;
     case 'a':
       toggleAutoWave();

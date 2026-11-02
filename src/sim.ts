@@ -4,10 +4,15 @@ import {
   DIFFICULTIES,
   GRID_COLS,
   GRID_ROWS,
+  MAX_TOWER_LEVEL,
   PATH_WAYPOINTS,
   STEPS_PER_BAR,
+  towerStats,
+  towerSpent,
+  upgradeCost,
   type Difficulty,
   type Rules,
+  type TowerStats,
   type WaveGroup,
 } from './config';
 import { buildWaves } from './waves';
@@ -20,6 +25,7 @@ export interface Tower {
   type: TowerType;
   col: number;
   row: number;
+  level: number;
 }
 
 export interface Enemy {
@@ -48,6 +54,7 @@ export type SimEvent =
       y: number;
       chordSize: number;
       step: number;
+      splash: number;
     }
   | { kind: 'chain'; fromX: number; fromY: number; x: number; y: number }
   | {
@@ -177,6 +184,7 @@ export class Sim {
   private spawnQueue: Spawn[];
   private waveStartPending: boolean;
   private nextWaveStep: number | null;
+  private readonly statsByLevel: Record<TowerType, TowerStats[]>;
 
   constructor(difficulty: Difficulty = DIFFICULTIES.hard, rules: Rules = DEFAULT_RULES) {
     this.difficulty = difficulty;
@@ -195,6 +203,14 @@ export class Sim {
     this.spawnQueue = [];
     this.waveStartPending = false;
     this.nextWaveStep = null;
+    this.statsByLevel = { kick: [], hat: [], synth: [] };
+    for (const type of ['kick', 'hat', 'synth'] as TowerType[]) {
+      const levels: TowerStats[] = [];
+      for (let level = 1; level <= MAX_TOWER_LEVEL; level += 1) {
+        levels.push(towerStats(rules, type, level));
+      }
+      this.statsByLevel[type] = levels;
+    }
   }
 
   private hasTowerAt(col: number, row: number): boolean {
@@ -214,7 +230,19 @@ export class Sim {
     const cost = this.rules.towers[type].cost;
     if (this.money < cost) return false;
     this.money -= cost;
-    this.towers.push({ type, col, row });
+    this.towers.push({ type, col, row, level: 1 });
+    return true;
+  }
+
+  upgradeTower(col: number, row: number): boolean {
+    if (this.phase === 'won' || this.phase === 'lost') return false;
+    const tower = this.towers.find((item) => item.col === col && item.row === row);
+    if (!tower) return false;
+    const cost = upgradeCost(this.rules, tower.type, tower.level);
+    if (cost === null) return false;
+    if (this.money < cost) return false;
+    this.money -= cost;
+    tower.level += 1;
     return true;
   }
 
@@ -223,7 +251,8 @@ export class Sim {
     if (index === -1) return false;
     const tower = this.towers[index];
     if (!tower) return false;
-    this.money += Math.floor(this.rules.towers[tower.type].cost * this.rules.sellRefund);
+    const spent = towerSpent(this.rules, tower.type, tower.level);
+    this.money += Math.floor(spent * this.rules.sellRefund);
     this.towers.splice(index, 1);
     return true;
   }
@@ -310,7 +339,7 @@ export class Sim {
       1 + this.rules.chordBonusPerTower * (Math.min(chordSize, this.rules.chordMaxTowers) - 1);
 
     for (const tower of firing) {
-      const stats = this.rules.towers[tower.type];
+      const stats = this.statsByLevel[tower.type][tower.level - 1];
       const inRange = this.enemiesInRange(tower.col, tower.row, stats.range);
       let target: Enemy | null = null;
       for (const enemy of inRange) {
@@ -340,6 +369,7 @@ export class Sim {
         y: targetPoint.y,
         chordSize,
         step: this.stepIndex,
+        splash: stats.splash,
       });
       const baseDamage = stats.damage * multiplier;
 

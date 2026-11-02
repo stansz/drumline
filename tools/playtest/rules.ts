@@ -6,6 +6,7 @@ import {
   type EnemyStats,
   type Rules,
   type TowerStats,
+  type TowerUpgrade,
   type WaveCurve,
 } from '../../src/config';
 import type { EnemyType, TowerType } from '../../src/sim';
@@ -17,6 +18,7 @@ export interface RulesPatch {
   chordMaxTowers?: number;
   sellRefund?: number;
   bossLeaks?: number[];
+  upgrades?: Partial<Record<TowerType, TowerUpgrade[]>>;
 }
 
 export interface DifficultyPatch {
@@ -48,6 +50,7 @@ export function resolveRules(patch: RulesPatch = {}): Rules {
     chordMaxTowers: patch.chordMaxTowers ?? DEFAULT_RULES.chordMaxTowers,
     sellRefund: patch.sellRefund ?? DEFAULT_RULES.sellRefund,
     bossLeaks: patch.bossLeaks ?? DEFAULT_RULES.bossLeaks,
+    upgrades: { ...DEFAULT_RULES.upgrades, ...patch.upgrades },
   };
 }
 

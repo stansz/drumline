@@ -17,12 +17,15 @@ const TIER_SETTINGS: Record<
 
 export function tierPolicy(tier: PolicyTier, rng: Rng): Policy {
   const settings = TIER_SETTINGS[tier];
-  return {
+  const policy: Policy = {
     weights: { kick: 0.2 + rng(), hat: 0.2 + rng(), synth: 0.2 + rng() },
     classMask: 15,
     earlyBias: 0,
     ...settings,
+    upgradeAt: null,
   };
+  if (tier === 'strong') policy.upgradeAt = 36 + Math.floor(rng() * 25);
+  return policy;
 }
 
 function percent(value: number): string {

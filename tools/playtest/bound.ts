@@ -1,11 +1,15 @@
-// A close estimate of the most damage a static board can deal to a boss. It is generous: every
-// earlier enemy pays its bounty, nothing is spent on earlier waves, every shot gets the capped
-// chord bonus, and no shot goes to another enemy. It leaves out three small effects: synth chains
-// and kick splash that reach the boss through a runner, and bounties from the boss's own wave.
+// A close estimate of the most damage a static board can deal to a boss. It lets every cell hold a
+// tower at any level. It is generous: every earlier enemy pays its bounty, nothing is spent on
+// earlier waves, every shot gets the capped chord bonus, and no shot goes to another enemy. It
+// leaves out some small effects, among them level 3 kick splash and synth chains that reach the
+// boss through a runner, and bounties from the boss's own wave.
 import {
   GRID_COLS,
   GRID_ROWS,
+  MAX_TOWER_LEVEL,
   STEPS_PER_BAR,
+  towerStats,
+  towerSpent,
   type Difficulty,
   type Rules,
 } from '../../src/config';
@@ -22,6 +26,12 @@ export interface BossBound {
 }
 
 const TOWER_ORDER: TowerType[] = ['kick', 'hat', 'synth'];
+
+interface Option {
+  type: TowerType;
+  level: number;
+  cost: number;
+}
 
 export function bossWaves(difficulty: Difficulty): number[] {
   const waves: number[] = [];
@@ -48,8 +58,9 @@ export function towerBossDamage(
   col: number,
   row: number,
   rules: Rules,
+  level = 1,
 ): number {
-  const stats = rules.towers[type];
+  const stats = towerStats(rules, type, level);
   const bonus = 1 + rules.chordBonusPerTower * (rules.chordMaxTowers - 1);
   const speed = rules.enemies.boss.speed;
   const length = pathLength();
@@ -82,30 +93,32 @@ function gcd(a: number, b: number): number {
 
 export function bossBound(wave: number, difficulty: Difficulty, rules: Rules): BossBound {
   const pathKeys = new Set(pathCells().map(([col, row]) => `${col},${row}`));
-  const cells: Array<{ damage: Record<TowerType, number> }> = [];
+  const options: Option[] = [];
+  for (const type of TOWER_ORDER) {
+    for (let level = 1; level <= MAX_TOWER_LEVEL; level += 1) {
+      options.push({ type, level, cost: towerSpent(rules, type, level) });
+    }
+  }
+
+  const cells: Array<{ damage: number[] }> = [];
   for (let col = 0; col < GRID_COLS; col += 1) {
     for (let row = 0; row < GRID_ROWS; row += 1) {
       if (pathKeys.has(`${col},${row}`)) continue;
-      const damage = {} as Record<TowerType, number>;
-      for (const type of TOWER_ORDER) {
-        damage[type] = towerBossDamage(type, col, row, rules);
-      }
+      const damage = options.map((option) =>
+        towerBossDamage(option.type, col, row, rules, option.level),
+      );
       cells.push({ damage });
     }
   }
 
   let fullBoardDamage = 0;
   for (const cell of cells) {
-    fullBoardDamage += Math.max(
-      cell.damage.kick,
-      cell.damage.hat,
-      cell.damage.synth,
-    );
+    fullBoardDamage += Math.max(...cell.damage);
   }
 
   const income = maxIncomeBefore(wave, difficulty, rules);
-  const costs = TOWER_ORDER.map((type) => rules.towers[type].cost);
-  const unit = gcd(gcd(costs[0] ?? 1, costs[1] ?? 1), costs[2] ?? 1) || 1;
+  const costs = options.map((option) => option.cost);
+  const unit = costs.reduce((result, cost) => gcd(result, cost), 0) || 1;
   const capacity = Math.floor(income / unit);
 
   const best = new Float64Array(capacity + 1);
@@ -119,16 +132,18 @@ export function bossBound(wave: number, difficulty: Difficulty, rules: Rules): B
     const next = best.slice();
     const choice = choices[index];
     if (!choice) continue;
-    for (let typeIndex = 0; typeIndex < TOWER_ORDER.length; typeIndex += 1) {
-      const type = TOWER_ORDER[typeIndex];
-      if (!type) continue;
-      const weight = (costs[typeIndex] ?? 0) / unit;
-      const value = cells[index]?.damage[type] ?? 0;
+    const damage = cells[index]?.damage;
+    if (!damage) continue;
+    for (let optionIndex = 0; optionIndex < options.length; optionIndex += 1) {
+      const cost = costs[optionIndex];
+      if (cost === undefined) continue;
+      const weight = cost / unit;
+      const value = damage[optionIndex] ?? 0;
       for (let c = capacity; c >= weight; c -= 1) {
         const candidate = (best[c - weight] ?? 0) + value;
         if (candidate > (next[c] ?? 0)) {
           next[c] = candidate;
-          choice[c] = typeIndex;
+          choice[c] = optionIndex;
         }
       }
     }
@@ -146,10 +161,10 @@ export function bossBound(wave: number, difficulty: Difficulty, rules: Rules): B
   for (let index = cells.length - 1; index >= 0; index -= 1) {
     const chosen = choices[index]?.[remaining] ?? -1;
     if (chosen < 0) continue;
-    const type = TOWER_ORDER[chosen];
-    if (!type) continue;
-    picks[type] += 1;
-    remaining -= (costs[chosen] ?? 0) / unit;
+    const option = options[chosen];
+    if (!option) continue;
+    picks[option.type] += 1;
+    remaining -= option.cost / unit;
   }
 
   const groups = buildWaves(difficulty, rules.enemies)[wave - 1] ?? [];

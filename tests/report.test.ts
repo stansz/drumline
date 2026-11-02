@@ -10,6 +10,7 @@ const policy: Policy = {
   earlyBias: 0,
   topK: 1,
   maxTowersPerWave: null,
+  upgradeAt: null,
 };
 
 function record(overrides: Partial<GameRecord>): GameRecord {
@@ -39,6 +40,7 @@ function record(overrides: Partial<GameRecord>): GameRecord {
     startLives: 20,
     spentByType: { kick: 0, hat: 0, synth: 0 },
     finalWaveProgress: 0,
+    upgrades: 0,
     ...overrides,
   };
 }

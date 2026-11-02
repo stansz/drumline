@@ -45,6 +45,12 @@ describe('tierPolicy', () => {
     expect(policy.midWave).toBe(false);
     expect(policy.classMask).toBe(15);
     expect(policy.earlyBias).toBe(0);
+    expect(policy.upgradeAt).toBeNull();
+  });
+
+  it('sets the competent limits', () => {
+    const policy = tierPolicy('competent', makeRng(1));
+    expect(policy.upgradeAt).toBeNull();
   });
 
   it('sets the strong limits', () => {
@@ -52,6 +58,8 @@ describe('tierPolicy', () => {
     expect(policy.maxTowersPerWave).toBeNull();
     expect(policy.topK).toBe(2);
     expect(policy.midWave).toBe(true);
+    expect(policy.upgradeAt).toBeGreaterThanOrEqual(36);
+    expect(policy.upgradeAt).toBeLessThanOrEqual(60);
   });
 
   it('gives every type a weight of at least 0.2', () => {

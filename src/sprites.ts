@@ -1,7 +1,16 @@
 // Every sprite is a pair of frames: idle, then strike for towers or the second step for enemies.
 // Each character is a key in PIXEL_COLORS, and '.' is transparent.
 
-export type SpriteName = 'kick' | 'hat' | 'synth' | 'blip' | 'runner' | 'brute' | 'boss' | 'sell';
+export type SpriteName =
+  | 'kick'
+  | 'hat'
+  | 'synth'
+  | 'blip'
+  | 'runner'
+  | 'brute'
+  | 'boss'
+  | 'sell'
+  | 'upgrade';
 export type SpriteFrames = readonly [readonly string[], readonly string[]];
 
 export const PIXEL_COLORS: Readonly<Record<string, string>> = {
@@ -331,6 +340,50 @@ export const SPRITES: Readonly<Record<SpriteName, SpriteFrames>> = {
       '................',
     ],
   ],
+  upgrade: [
+    [
+      '................',
+      '.......00.......',
+      '......0ii0......',
+      '.....0iigg0.....',
+      '....0iigggg0....',
+      '...0iigggggg0...',
+      '..0iigggggggg0..',
+      '..00000gg00000..',
+      '......0gh0......',
+      '......0gh0......',
+      '......0gh0......',
+      '......0gh0......',
+      '......0gh0......',
+      '......0000......',
+      '................',
+      '................',
+    ],
+    [
+      '................',
+      '.......00.......',
+      '......0ii0......',
+      '.....0iigg0.....',
+      '....0iigggg0....',
+      '...0iigggggg0...',
+      '..0iigggggggg0..',
+      '..00000gg00000..',
+      '......0gh0......',
+      '......0gh0......',
+      '......0gh0......',
+      '......0gh0......',
+      '......0gh0......',
+      '......0000......',
+      '................',
+      '................',
+    ],
+  ],
+};
+
+// Drawn over a tower's top-left corner to show its level. Level 1 has no badge.
+export const LEVEL_BADGES: Readonly<Record<number, readonly string[]>> = {
+  2: ['0000', '0660', '0660', '0000'],
+  3: ['0000000', '0660660', '0660660', '0000000'],
 };
 
 // 5×7 letters for the logo. '#' is filled.

@@ -5,6 +5,8 @@ import {
   GRID_COLS,
   GRID_ROWS,
   TOWERS,
+  towerStats,
+  upgradeCost,
 } from './config';
 import { bayer, circlePoints, drawText, linePoints } from './pixel';
 import {
@@ -16,6 +18,7 @@ import {
   type TowerType,
 } from './sim';
 import {
+  LEVEL_BADGES,
   LOGO_GLYPHS,
   PIXEL_COLORS,
   SPRITES,
@@ -45,7 +48,7 @@ export interface RenderState {
   lastStepTime: number;
   stepDuration: number;
   playhead: number;
-  selected: TowerType | 'sell' | null;
+  selected: TowerType | 'sell' | 'upgrade' | null;
   hover: { col: number; row: number } | null;
   inspect: { col: number; row: number } | null;
 }
@@ -68,6 +71,7 @@ interface KickEffect {
   y: number;
   born: number;
   life: number;
+  splash: number;
 }
 
 interface HatEffect {
@@ -134,6 +138,11 @@ for (const name of Object.keys(SPRITES) as SpriteName[]) {
     normal: [bake(first), bake(second)],
     hit: [bake(first, hitColor), bake(second, hitColor)],
   });
+}
+
+const BADGES = new Map<number, HTMLCanvasElement>();
+for (const [level, rows] of Object.entries(LEVEL_BADGES)) {
+  BADGES.set(Number(level), bake(rows));
 }
 
 // A six segment jagged line between two art pixels.
@@ -265,7 +274,16 @@ export class Renderer {
       const x = (event.x + 0.5) * ART_CELL;
       const y = (event.y + 0.5) * ART_CELL;
       if (event.towerType === 'kick') {
-        this.effects.push({ kind: 'kick', fromX, fromY, x, y, born: this.lastNow, life: 0.3 });
+        this.effects.push({
+          kind: 'kick',
+          fromX,
+          fromY,
+          x,
+          y,
+          born: this.lastNow,
+          life: 0.3,
+          splash: event.splash,
+        });
       } else if (event.towerType === 'hat') {
         this.effects.push({ kind: 'hat', fromX, fromY, x, y, born: this.lastNow, life: 0.12 });
       } else {
@@ -533,7 +551,7 @@ export class Renderer {
     this.circP(
       (tower.col + 0.5) * ART_CELL,
       (tower.row + 0.5) * ART_CELL,
-      TOWERS[tower.type].range * ART_CELL,
+      towerStats(state.sim.rules, tower.type, tower.level).range * ART_CELL,
       PIXEL_COLORS['6'],
       0.55,
     );
@@ -541,7 +559,7 @@ export class Renderer {
 
   private drawPreview(state: RenderState): void {
     const { sim, selected, hover } = state;
-    if (!hover || !selected || selected === 'sell') return;
+    if (!hover || !selected || selected === 'sell' || selected === 'upgrade') return;
     if (!sim.canPlace(hover.col, hover.row)) return;
     const x = hover.col * ART_CELL;
     const y = hover.row * ART_CELL;
@@ -561,13 +579,18 @@ export class Renderer {
     );
   }
 
-  private drawSellOutline(state: RenderState): void {
+  private drawToolOutline(state: RenderState): void {
     const hover = state.hover;
-    if (state.selected !== 'sell' || !hover) return;
+    if ((state.selected !== 'sell' && state.selected !== 'upgrade') || !hover) return;
     const tower = state.sim.towers.find(
       (candidate) => candidate.col === hover.col && candidate.row === hover.row,
     );
     if (!tower) return;
+    if (state.selected === 'upgrade') {
+      if (upgradeCost(state.sim.rules, tower.type, tower.level) === null) return;
+      this.strokeTile(hover.col, hover.row, PIXEL_COLORS.g);
+      return;
+    }
     this.strokeTile(hover.col, hover.row, PIXEL_COLORS.r);
   }
 
@@ -579,7 +602,11 @@ export class Renderer {
       if (frame === 1) this.strokeInset(tower.col, tower.row, TOWER_OUTLINE[tower.type]);
       const frames = BAKED.get(tower.type);
       if (!frames) continue;
-      this.ctx.drawImage(frames.normal[frame], tower.col * ART_CELL, tower.row * ART_CELL);
+      const x = tower.col * ART_CELL;
+      const y = tower.row * ART_CELL;
+      this.ctx.drawImage(frames.normal[frame], x, y);
+      const badge = BADGES.get(tower.level);
+      if (badge) this.ctx.drawImage(badge, x, y);
     }
   }
 
@@ -641,7 +668,7 @@ export class Renderer {
       const t = Math.max(0, Math.min(1, (now - effect.born) / effect.life));
       const alpha = 1 - t;
       if (effect.kind === 'kick') {
-        const radius = t * TOWERS.kick.splash * ART_CELL + 1;
+        const radius = t * effect.splash * ART_CELL + 1;
         this.circP(effect.x, effect.y, radius, PIXEL_COLORS.r, alpha + 0.2);
         if (t < 0.4) {
           this.lineP(effect.fromX, effect.fromY, effect.x, effect.y, PIXEL_COLORS['7']);
@@ -721,7 +748,7 @@ export class Renderer {
     this.drawPlayhead(state.playhead);
     this.drawRanges(state);
     this.drawPreview(state);
-    this.drawSellOutline(state);
+    this.drawToolOutline(state);
     this.drawTowers(state);
     this.drawEnemies(state);
     this.drawEffects(state.now);

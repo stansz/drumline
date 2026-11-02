@@ -14,6 +14,7 @@ const base = (kick: number, hat: number, synth: number): Policy => ({
   earlyBias: 0,
   topK: 1,
   maxTowersPerWave: null,
+  upgradeAt: null,
 });
 
 function towersFor(seed: number, policy: Policy): string {
@@ -66,6 +67,22 @@ describe('playGame', () => {
     expect(result.bossKills).toEqual([10, 20]);
     expect(result.finalBossWave).toBe(30);
     expect(result.bossDamageByWave['10']).toBeGreaterThanOrEqual(1862);
+  });
+
+  it('reports upgrades above zero for a policy that buys them', () => {
+    const policy = { ...base(1, 1, 1), upgradeAt: 10 };
+    const result = playGame(policyBot(policy, rules), DIFFICULTIES.hard, rules, 1);
+    expect(result.upgrades).toBeGreaterThan(0);
+  });
+
+  it('includes upgrade spending in spentByType', () => {
+    const policy = { ...base(1, 1, 1), upgradeAt: 10 };
+    const result = playGame(policyBot(policy, rules), DIFFICULTIES.hard, rules, 1);
+    let extra = 0;
+    for (const type of ['kick', 'hat', 'synth'] as const) {
+      extra += result.spentByType[type] - result.mix[type] * rules.towers[type].cost;
+    }
+    expect(extra).toBeGreaterThan(0);
   });
 });
 

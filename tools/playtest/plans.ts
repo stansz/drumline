@@ -1,4 +1,4 @@
-import { GRID_COLS, GRID_ROWS, type Difficulty, type Rules } from '../../src/config';
+import { GRID_COLS, GRID_ROWS, upgradeCost, type Difficulty, type Rules } from '../../src/config';
 import { pathCells, type TowerType } from '../../src/sim';
 import {
   playGame,
@@ -10,12 +10,16 @@ import {
 } from './bots';
 
 export interface PlanStep {
-  type: TowerType;
+  type: TowerType | 'upgrade';
   col: number;
   row: number;
 }
 
 export type BuildPlan = PlanStep[];
+
+export function placeSteps(plan: BuildPlan): Array<PlanStep & { type: TowerType }> {
+  return plan.filter((step): step is PlanStep & { type: TowerType } => step.type !== 'upgrade');
+}
 
 function buildBuildableCells(): Array<[number, number]> {
   const blocked = new Set(pathCells().map(([col, row]) => `${col},${row}`));
@@ -43,6 +47,18 @@ export function planBot(plan: BuildPlan): Bot {
     while (next < plan.length) {
       const step = plan[next];
       if (!step) return;
+      if (step.type === 'upgrade') {
+        const tower = sim.towers.find((item) => item.col === step.col && item.row === step.row);
+        const cost = tower ? upgradeCost(sim.rules, tower.type, tower.level) : null;
+        if (cost === null) {
+          next += 1;
+          continue;
+        }
+        if (sim.money < cost) return;
+        sim.upgradeTower(step.col, step.row);
+        next += 1;
+        continue;
+      }
       if (!sim.canPlace(step.col, step.row)) {
         next += 1;
         continue;
@@ -69,21 +85,10 @@ export function recordPlan(
   rules: Rules,
   seed: number,
 ): BuildPlan {
-  const inner = policyBot(policy, rules);
-  const captured: { sim: BotContext['sim'] | null } = { sim: null };
-  const bot: Bot = {
-    build(ctx: BotContext): void {
-      captured.sim = ctx.sim;
-      inner.build(ctx);
-    },
-    onBar(ctx: BotContext): void {
-      inner.onBar?.(ctx);
-    },
-  };
+  const bought: BuildPlan = [];
+  const bot = policyBot(policy, rules, (step) => bought.push(step));
   playGame(bot, difficulty, rules, seed);
-  const sim = captured.sim;
-  if (!sim) throw new Error('plan recording never built');
-  return sim.towers.map((tower) => ({ type: tower.type, col: tower.col, row: tower.row }));
+  return bought;
 }
 
 export function noisyPlan(plan: BuildPlan, rng: Rng, rate: number): BuildPlan {
@@ -95,18 +100,27 @@ export function noisyPlan(plan: BuildPlan, rng: Rng, rate: number): BuildPlan {
       const current = copy[index];
       const next = copy[index + 1];
       if (current && next) {
+        if (current.col === next.col && current.row === next.row) continue;
         copy[index] = next;
         copy[index + 1] = current;
       }
       continue;
     }
-    const used = new Set(copy.map((step) => `${step.col},${step.row}`));
+    const used = new Set(placeSteps(copy).map((step) => `${step.col},${step.row}`));
     const free = cells.filter(([col, row]) => !used.has(`${col},${row}`));
     if (free.length === 0) continue;
     const cell = free[Math.floor(rng() * free.length)];
     const step = copy[index];
-    if (cell && step) {
-      copy[index] = { ...step, col: cell[0], row: cell[1] };
+    if (!cell || !step) continue;
+    if (step.type === 'upgrade') continue;
+    const oldCol = step.col;
+    const oldRow = step.row;
+    copy[index] = { ...step, col: cell[0], row: cell[1] };
+    for (const other of copy) {
+      if (other.type !== 'upgrade') continue;
+      if (other.col !== oldCol || other.row !== oldRow) continue;
+      other.col = cell[0];
+      other.row = cell[1];
     }
   }
   return copy;

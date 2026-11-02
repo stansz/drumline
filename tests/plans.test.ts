@@ -21,6 +21,7 @@ const base = (kick: number, hat: number, synth: number): Policy => ({
   earlyBias: 0,
   topK: 1,
   maxTowersPerWave: null,
+  upgradeAt: null,
 });
 
 function cellKey(step: PlanStep): string {
@@ -76,7 +77,7 @@ describe('planBot', () => {
 
     expect(sim.towers).toHaveLength(2);
     expect(sim.towers.filter((tower) => tower.type === 'kick')).toHaveLength(0);
-    expect(sim.towers[1]).toEqual({ type: 'hat', col: free[0], row: free[1] });
+    expect(sim.towers[1]).toEqual({ type: 'hat', col: free[0], row: free[1], level: 1 });
   });
 
   it('buys more on onBar once there is money', () => {
@@ -93,12 +94,50 @@ describe('planBot', () => {
     expect(sim.towers).toHaveLength(1);
     expect(sim.towers[0]?.type).toBe('kick');
   });
+
+  it('buys upgrades, waits for money, and skips ones it cannot buy', () => {
+    const cells = buildableCells();
+    const [first, second] = cells;
+    if (!first || !second) throw new Error('not enough cells');
+    const sim = new Sim({ ...DIFFICULTIES.hard, startMoney: 50 });
+    const upgradePlan: BuildPlan = [
+      { type: 'kick', col: first[0], row: first[1] },
+      { type: 'upgrade', col: first[0], row: first[1] },
+      { type: 'upgrade', col: first[0], row: first[1] },
+      { type: 'upgrade', col: second[0], row: second[1] },
+      { type: 'upgrade', col: first[0], row: first[1] },
+    ];
+    const bot = planBot(upgradePlan);
+
+    bot.build({ sim, rng: makeRng(1) });
+    expect(sim.towers[0]?.level).toBe(1);
+
+    sim.money = 50;
+    bot.onBar?.({ sim, rng: makeRng(1) });
+    expect(sim.towers[0]?.level).toBe(2);
+    expect(sim.money).toBe(0);
+
+    sim.money = 99;
+    bot.onBar?.({ sim, rng: makeRng(1) });
+    expect(sim.towers[0]?.level).toBe(2);
+
+    sim.money = 100;
+    bot.onBar?.({ sim, rng: makeRng(1) });
+    expect(sim.towers[0]?.level).toBe(3);
+    expect(sim.money).toBe(0);
+    expect(sim.towers).toHaveLength(1);
+  });
 });
 
 describe('recordPlan', () => {
   it('records the towers a mixed policy bought on Hard', () => {
     const plan = recordPlan(base(1, 1, 1), DIFFICULTIES.hard, rules, 1);
     expect(plan).toHaveLength(60);
+  });
+
+  it('records upgrade steps for a policy that upgrades', () => {
+    const plan = recordPlan({ ...base(1, 1, 1), upgradeAt: 10 }, DIFFICULTIES.hard, rules, 1);
+    expect(plan.some((step) => step.type === 'upgrade')).toBe(true);
   });
 });
 
@@ -117,5 +156,25 @@ describe('noisyPlan', () => {
     const keys = noisy.map(cellKey);
     expect(new Set(keys).size).toBe(keys.length);
     for (const key of keys) expect(buildable.has(key)).toBe(true);
+  });
+
+  it('keeps upgrade steps on their place step cell at rate 1', () => {
+    const cells = buildableCells();
+    const [first, second] = cells;
+    if (!first || !second) throw new Error('not enough cells');
+    const plan: BuildPlan = [
+      { type: 'kick', col: first[0], row: first[1] },
+      { type: 'upgrade', col: first[0], row: first[1] },
+      { type: 'hat', col: second[0], row: second[1] },
+      { type: 'upgrade', col: second[0], row: second[1] },
+    ];
+    const noisy = noisyPlan(plan, makeRng(1), 1);
+    const placeKeys = new Set(
+      noisy.filter((step) => step.type !== 'upgrade').map((step) => `${step.col},${step.row}`),
+    );
+    for (const step of noisy) {
+      if (step.type !== 'upgrade') continue;
+      expect(placeKeys.has(`${step.col},${step.row}`)).toBe(true);
+    }
   });
 });

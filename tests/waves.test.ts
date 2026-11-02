@@ -102,7 +102,7 @@ describe('difficulty', () => {
 
   it('pays the difficulty wave bonus on clearing a wave', () => {
     const sim = new Sim(DIFFICULTIES.easy);
-    sim.towers.push({ type: 'kick', col: 5, row: 0 });
+    sim.towers.push({ type: 'kick', col: 5, row: 0, level: 1 });
     expect(sim.startWave()).toBe(true);
     let cleared = false;
     let before = sim.money;

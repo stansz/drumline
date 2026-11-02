@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  LEVEL_BADGES,
   LOGO_GLYPHS,
   MINI_GLYPHS,
   PIXEL_COLORS,
@@ -32,6 +33,21 @@ describe('sprites', () => {
     for (const name of ['kick', 'hat', 'synth'] as const) {
       expect(SPRITES[name][0]).toHaveLength(16);
       expect(SPRITES[name][0][0]).toHaveLength(16);
+    }
+  });
+
+  it('keeps level badges rectangular, inside a cell, and using defined colors', () => {
+    for (const rows of Object.values(LEVEL_BADGES)) {
+      const width = rows[0]?.length ?? 0;
+      expect(width).toBeGreaterThan(0);
+      expect(width).toBeLessThanOrEqual(16);
+      expect(rows.length).toBeLessThanOrEqual(16);
+      for (const row of rows) {
+        expect(row).toHaveLength(width);
+        for (const character of row) {
+          if (character !== '.') expect(PIXEL_COLORS[character]).toBeDefined();
+        }
+      }
     }
   });
 });

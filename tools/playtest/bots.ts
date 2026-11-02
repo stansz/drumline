@@ -2,10 +2,13 @@ import {
   GRID_COLS,
   GRID_ROWS,
   STEPS_PER_BAR,
+  towerSpent,
+  upgradeCost,
   type Difficulty,
   type Rules,
 } from '../../src/config';
 import { Sim, pathCells, type Phase, type TowerType } from '../../src/sim';
+import type { PlanStep } from './plans';
 
 export type Rng = () => number;
 
@@ -38,6 +41,8 @@ export interface Policy {
   // Picks at random among this many best cells. 1 always takes the best.
   topK: number;
   maxTowersPerWave: number | null;
+  // Buys upgrades instead of towers once the board has this many towers. null never upgrades.
+  upgradeAt: number | null;
 }
 
 export interface GameResult {
@@ -60,6 +65,7 @@ export interface GameResult {
   startLives: number;
   spentByType: Record<TowerType, number>;
   finalWaveProgress: number;
+  upgrades: number;
 }
 
 const TOWER_ORDER: TowerType[] = ['kick', 'hat', 'synth'];
@@ -79,7 +85,8 @@ export function randomPolicy(rng: Rng): Policy {
   const earlyBias = rng() < 0.5 ? 0 : rng() * 3;
   const topK = 1 + Math.floor(rng() * 3);
   const maxTowersPerWave = rng() < 0.25 ? 1 + Math.floor(rng() * 3) : null;
-  return { weights, classMask, midWave, earlyBias, topK, maxTowersPerWave };
+  const upgradeAt = rng() < 0.5 ? null : 20 + Math.floor(rng() * 41);
+  return { weights, classMask, midWave, earlyBias, topK, maxTowersPerWave, upgradeAt };
 }
 
 type CoverageTable = Record<TowerType, number[][]>;
@@ -112,7 +119,11 @@ interface Cell {
   score: number;
 }
 
-export function policyBot(policy: Policy, rules: Rules): Bot {
+export function policyBot(
+  policy: Policy,
+  rules: Rules,
+  onBuy?: (step: PlanStep) => void,
+): Bot {
   const coverage = buildCoverage(rules);
   let placedThisWave = 0;
 
@@ -121,6 +132,32 @@ export function policyBot(policy: Policy, rules: Rules): Bot {
     for (;;) {
       if (policy.maxTowersPerWave !== null && placedThisWave >= policy.maxTowersPerWave) {
         return;
+      }
+
+      if (policy.upgradeAt !== null && sim.towers.length >= policy.upgradeAt) {
+        let target: { col: number; row: number; cost: number } | null = null;
+        let targetLevel = Number.POSITIVE_INFINITY;
+        let targetCoverage = Number.NEGATIVE_INFINITY;
+        for (const tower of sim.towers) {
+          const cost = upgradeCost(sim.rules, tower.type, tower.level);
+          if (cost === null) continue;
+          const covered = coverage[tower.type][tower.col][tower.row];
+          if (
+            tower.level < targetLevel ||
+            (tower.level === targetLevel && covered > targetCoverage)
+          ) {
+            target = { col: tower.col, row: tower.row, cost };
+            targetLevel = tower.level;
+            targetCoverage = covered;
+          }
+        }
+        if (target) {
+          if (sim.money < target.cost) return;
+          sim.upgradeTower(target.col, target.row);
+          onBuy?.({ type: 'upgrade', col: target.col, row: target.row });
+          placedThisWave += 1;
+          continue;
+        }
       }
 
       const weights = policy.weights;
@@ -167,6 +204,7 @@ export function policyBot(policy: Policy, rules: Rules): Bot {
       }
 
       if (!sim.placeTower(type, chosen.col, chosen.row)) return;
+      onBuy?.({ type, col: chosen.col, row: chosen.row });
       placedThisWave += 1;
     }
   }
@@ -248,7 +286,11 @@ export function playGame(
   });
 
   const spentByType: Record<TowerType, number> = { kick: 0, hat: 0, synth: 0 };
-  for (const tower of sim.towers) spentByType[tower.type] += rules.towers[tower.type].cost;
+  for (const tower of sim.towers) {
+    spentByType[tower.type] += towerSpent(rules, tower.type, tower.level);
+  }
+  let upgrades = 0;
+  for (const tower of sim.towers) upgrades += tower.level - 1;
 
   const waveHealth = (sim.waves[sim.wave - 1] ?? []).reduce(
     (sum, group) => sum + group.hp * group.count,
@@ -276,5 +318,6 @@ export function playGame(
     startLives: difficulty.startLives,
     spentByType,
     finalWaveProgress,
+    upgrades,
   };
 }

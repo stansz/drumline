@@ -11,7 +11,7 @@ your instruments sit on a looping 16-step sequencer. Each column of the board is
 one step: towers fire when the playhead reaches their column.
 
 - **Kick** (50): heavy splash damage, fires once per bar.
-- **Hat** (35): fast chip damage, fires four times per bar.
+- **Hat** (40): fast chip damage, fires four times per bar.
 - **Synth** (70): long-range damage that chains to nearby enemies.
 
 Towers that fire on the same step form a chord and deal bonus damage. Build,
@@ -20,8 +20,10 @@ starts 4 bars after the last one clears, which is 8 seconds at 120 BPM. Press
 the button during the countdown to send the wave early, or turn **Auto** off to
 start every wave yourself. Every leaked enemy costs lives; clear all 30 waves
 before your lives run out to win. A boss arrives every 10 waves, and one that
-gets through costs 5, 10, then 20 lives. Select **Sell** and click a tower to
-refund 70% of its cost.
+gets through costs 5, 10, then 20 lives. Select **Upgrade** and click a tower
+to buy its next level, up to level 3, even during a wave. Level 2 costs the
+tower's price again and level 3 costs twice its price. **Sell** refunds 70% of
+everything spent on a tower.
 
 | Mode | Lives | Starting money | Wave bonus | Enemy health |
 | --- | --- | --- | --- | --- |
@@ -36,7 +38,7 @@ Press **Theme** to switch between the Neon, Chiptune, Lo-fi, Techno, and Funk so
 ## Controls
 
 - **E** Easy or **H** Hard on the difficulty screen
-- **1** Kick, **2** Hat, **3** Synth, **4** Sell
+- **1** Kick, **2** Hat, **3** Synth, **4** Sell, **5** Upgrade
 - Click a buildable cell to place the selected tower
 - **Space** start the next wave, or send it early during the countdown
 - **A** turn automatic waves on or off

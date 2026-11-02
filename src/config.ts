@@ -45,10 +45,40 @@ export const TOWERS: Record<TowerType, TowerStats> = {
   synth: { cost: 70, range: 4, damage: 18, splash: 0, chain: 2 },
 };
 
-export const TOWER_INFO: Record<TowerType, { name: string; role: string; description: string }> = {
-  kick: { name: 'Kick', role: 'Splash', description: 'Hits everything near its target, once per bar.' },
-  hat: { name: 'Hat', role: 'Rapid', description: 'Small hits, four times per bar.' },
-  synth: { name: 'Synth', role: 'Chain', description: 'Zaps its target, then arcs to 2 more enemies at half damage, once per bar.' },
+export const MAX_TOWER_LEVEL = 3;
+
+// One level bought on a tower: its price as a share of the tower's cost, and what it adds.
+export interface TowerUpgrade {
+  costShare: number;
+  damage?: number;
+  range?: number;
+  splash?: number;
+  chain?: number;
+}
+
+// Levels 2 and 3 of each tower, in order. They never change when a tower fires or chords.
+export const TOWER_UPGRADES: Record<TowerType, readonly TowerUpgrade[]> = {
+  kick: [
+    { costShare: 1, damage: 12 },
+    { costShare: 2, damage: 12, splash: 0.5 },
+  ],
+  hat: [
+    { costShare: 1, range: 1 },
+    { costShare: 2, damage: 2 },
+  ],
+  synth: [
+    { costShare: 1, damage: 9 },
+    { costShare: 2, chain: 1 },
+  ],
+};
+
+export const TOWER_INFO: Record<
+  TowerType,
+  { name: string; role: string; description: string; upgrades: readonly [string, string] }
+> = {
+  kick: { name: 'Kick', role: 'Splash', description: 'Hits everything near its target, once per bar.', upgrades: ['more damage', 'wider splash and more damage'] },
+  hat: { name: 'Hat', role: 'Rapid', description: 'Small hits, four times per bar.', upgrades: ['more range', 'more damage'] },
+  synth: { name: 'Synth', role: 'Chain', description: 'Zaps its target, then arcs to 2 more enemies at half damage, once per bar.', upgrades: ['more damage', 'one more chain link'] },
 };
 
 export interface EnemyStats {
@@ -73,6 +103,7 @@ export interface Rules {
   chordMaxTowers: number;
   sellRefund: number;
   bossLeaks: readonly number[];
+  upgrades: Record<TowerType, readonly TowerUpgrade[]>;
 }
 
 export const DEFAULT_RULES: Rules = {
@@ -82,7 +113,34 @@ export const DEFAULT_RULES: Rules = {
   chordMaxTowers: CHORD_MAX_TOWERS,
   sellRefund: SELL_REFUND,
   bossLeaks: BOSS_LEAKS,
+  upgrades: TOWER_UPGRADES,
 };
+
+export function towerStats(rules: Rules, type: TowerType, level: number): TowerStats {
+  const stats = { ...rules.towers[type] };
+  for (const upgrade of rules.upgrades[type].slice(0, level - 1)) {
+    stats.damage += upgrade.damage ?? 0;
+    stats.range += upgrade.range ?? 0;
+    stats.splash += upgrade.splash ?? 0;
+    stats.chain += upgrade.chain ?? 0;
+  }
+  return stats;
+}
+
+// The price of the level after `level`, or null when there isn't one.
+export function upgradeCost(rules: Rules, type: TowerType, level: number): number | null {
+  const upgrade = rules.upgrades[type][level - 1];
+  if (!upgrade) return null;
+  return Math.round(rules.towers[type].cost * upgrade.costShare);
+}
+
+export function towerSpent(rules: Rules, type: TowerType, level: number): number {
+  let spent = rules.towers[type].cost;
+  for (let current = 1; current < level; current += 1) {
+    spent += upgradeCost(rules, type, current) ?? 0;
+  }
+  return spent;
+}
 
 export interface WaveGroup {
   type: EnemyType;
