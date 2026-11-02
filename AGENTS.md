@@ -6,7 +6,9 @@ TypeScript, Vite, Canvas, and Web Audio, with no framework or runtime dependenci
 Commands: `npm run dev`, `npm test`, `npm run test:sandbox`, `npm run typecheck`,
 `npm run build`, `npm run playtest`, `npm run playtest:report`, `npm run playtest:sweep`,
 `npm run playtest:search`, `npm run playtest:tiers`.
-Pushing to `main` deploys to GitHub Pages, and a failing test blocks the deploy.
+Pushing to `main` deploys to GitHub Pages, and a failing test blocks the deploy. Pushing to
+`upgrades` rebuilds `/upgrades/`. A push to either branch replaces the whole site, so test workflow
+changes on a throwaway branch before they reach `main`.
 
 ## Read before changing
 
