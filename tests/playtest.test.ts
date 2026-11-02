@@ -23,27 +23,27 @@ function towersFor(seed: number, policy: Policy): string {
 }
 
 describe('playGame', () => {
-  it('a mixed bot loses at wave 28 on hard', () => {
+  it('a mixed bot loses at wave 30 on hard', () => {
     const result = playGame(policyBot(base(1, 1, 1), rules), DIFFICULTIES.hard, rules, 1);
     expect(result.result).toBe('lost');
-    expect(result.wave).toBe(28);
-    expect(result.towers).toBe(56);
-    expect(result.mix).toEqual({ kick: 19, hat: 19, synth: 18 });
+    expect(result.wave).toBe(30);
+    expect(result.towers).toBe(60);
+    expect(result.mix).toEqual({ kick: 20, hat: 20, synth: 20 });
   });
 
   it('a mixed bot wins on easy', () => {
     const result = playGame(policyBot(base(1, 1, 1), rules), DIFFICULTIES.easy, rules, 1);
     expect(result.result).toBe('won');
     expect(result.lives).toBe(30);
-    expect(result.towers).toBe(75);
-    expect(result.mix).toEqual({ kick: 25, hat: 25, synth: 25 });
+    expect(result.towers).toBe(72);
+    expect(result.mix).toEqual({ kick: 24, hat: 24, synth: 24 });
   });
 
-  it('a hat-only bot loses at wave 25 on hard', () => {
+  it('a hat-only bot loses at wave 26 on hard', () => {
     const result = playGame(policyBot(base(0, 1, 0), rules), DIFFICULTIES.hard, rules, 1);
     expect(result.result).toBe('lost');
-    expect(result.wave).toBe(25);
-    expect(result.towers).toBe(70);
+    expect(result.wave).toBe(26);
+    expect(result.towers).toBe(64);
   });
 
   it('a capped mid-wave bot never builds more towers than waves', () => {
@@ -58,7 +58,7 @@ describe('playGame', () => {
       expect(damage).toBeGreaterThan(0);
     }
     expect(result.chordAverage).toBeGreaterThan(1);
-    expect(result.chordAverage).toBeLessThan(1.75);
+    expect(result.chordAverage).toBeLessThan(2.25);
   });
 
   it('records boss kills, boss damage, and the final boss wave', () => {

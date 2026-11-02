@@ -65,7 +65,7 @@ describe('hit damage', () => {
     sim.enemies.push({ id: 103, type: 'brute', hp: 120, maxHp: 120, progress: 7 });
     sim.stepIndex = 5;
 
-    expect(hitDamages(sim.step())).toEqual([14, 7, 7]);
+    expect(hitDamages(sim.step())).toEqual([18, 9, 9]);
   });
 
   it('boosts every hit in a chord', () => {

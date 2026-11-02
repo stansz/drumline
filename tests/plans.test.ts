@@ -98,7 +98,7 @@ describe('planBot', () => {
 describe('recordPlan', () => {
   it('records the towers a mixed policy bought on Hard', () => {
     const plan = recordPlan(base(1, 1, 1), DIFFICULTIES.hard, rules, 1);
-    expect(plan).toHaveLength(56);
+    expect(plan).toHaveLength(60);
   });
 });
 

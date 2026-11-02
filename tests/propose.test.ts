@@ -77,7 +77,7 @@ describe('patchForSetting', () => {
 
 describe('currentSetting', () => {
   it('reads a curve value from the default rules', () => {
-    expect(currentSetting('curve.bossHealthCap', DEFAULT_RULES, DIFFICULTIES.hard)).toBe(13000);
+    expect(currentSetting('curve.bossHealthCap', DEFAULT_RULES, DIFFICULTIES.hard)).toBe(20500);
   });
 });
 

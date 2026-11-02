@@ -21,7 +21,7 @@ export const PATH_WAYPOINTS: ReadonlyArray<readonly [number, number]> = [
 export const SELL_REFUND = 0.7;
 
 export const CHORD_BONUS_PER_TOWER = 0.25;
-export const CHORD_MAX_TOWERS = 4;
+export const CHORD_MAX_TOWERS = 6;
 
 // How many of each sound can start on one step, because each one costs audio CPU.
 // Towers past the limit still fire and deal damage.
@@ -38,8 +38,8 @@ export interface TowerStats {
 
 export const TOWERS: Record<TowerType, TowerStats> = {
   kick: { cost: 50, range: 2.5, damage: 12, splash: 1.0, chain: 0 },
-  hat: { cost: 35, range: 3.5, damage: 3, splash: 0, chain: 0 },
-  synth: { cost: 70, range: 4, damage: 14, splash: 0, chain: 2 },
+  hat: { cost: 40, range: 3.5, damage: 3, splash: 0, chain: 0 },
+  synth: { cost: 70, range: 4, damage: 18, splash: 0, chain: 2 },
 };
 
 export const TOWER_INFO: Record<TowerType, { name: string; role: string; description: string }> = {
@@ -104,7 +104,7 @@ export const WAVE_CURVE: WaveCurve = {
   waves: 30,
   bossEvery: 10,
   bossBudget: 1,
-  bossHealthCap: 13000,
+  bossHealthCap: 20500,
   baseHealth: 240,
   ramp: 0.3,
   growth: 1.1,

@@ -4,12 +4,12 @@ import { Sim } from '../src/sim';
 import { bossBound, bossWaves } from '../tools/playtest/bound';
 
 const expected = [
-  ['hard', 10, 1862, 814, 6321],
-  ['hard', 20, 8350, 1879, 12056],
-  ['hard', 30, 13000, 3256, 16679],
-  ['easy', 10, 931, 1044, 7691],
-  ['easy', 20, 4175, 2309, 13636],
-  ['easy', 30, 6500, 3886, 18247],
+  ['hard', 10, 1862, 814, 8012],
+  ['hard', 20, 8350, 1879, 16274],
+  ['hard', 30, 20500, 3256, 25157],
+  ['easy', 10, 931, 1044, 9902],
+  ['easy', 20, 4175, 2309, 19258],
+  ['easy', 30, 10250, 3886, 28202],
 ] as const;
 
 describe('boss bound', () => {
@@ -22,9 +22,9 @@ describe('boss bound', () => {
     });
   }
 
-  it('a full board deals 21487 damage', () => {
+  it('a full board deals 35519 damage', () => {
     expect(Math.round(bossBound(10, DIFFICULTIES.hard, DEFAULT_RULES).fullBoardDamage)).toBe(
-      21487,
+      35519,
     );
   });
 

@@ -20,8 +20,8 @@ How Drumline's code fits together. [AGENTS.md](../AGENTS.md) holds the rules.
 - `tests/bots.ts`: scripted players used by `tests/balance.test.ts`. The `chord` bot is called Stack
   in the docs.
 - `tools/playtest/`: headless balance harness. See [Playtest harness](#playtest-harness).
-- `tests/fixtures/`: expert build plans, replayed by `tests/balance.test.ts`. They came from searches
-  at a higher boss cap, as [balance.md](balance.md) explains.
+- `tests/fixtures/`: expert build plans, replayed by `tests/balance.test.ts`. They came from the
+  standard Hard search, as [balance.md](balance.md) explains.
 - `vitest.sandbox.config.mjs`: runs the tests inside the Windows `dsh` sandbox, through
   `npm run test:sandbox`.
 - `tests/loudness.ts`: browser-only audio check, with Neon's target levels stored in
