@@ -6,17 +6,16 @@ anything in `playtest-out/`, this file and `src/config.ts` win.
 
 ## Status
 
-Last measured 2026-11-01, on these configs:
+Last measured 2026-11-02, on these configs:
 
 | Mode | Config hash |
 | --- | --- |
-| Hard | `10f8b9ca` |
-| Easy | `59ff3eda` |
+| Hard | `2750ad72` |
+| Easy | `c2afca6a` |
 
-**Out of date:** [Current results](#current-results) were measured before tower upgrades, on configs
-`4ce87782` for Hard and `ddbd5ac2` for Easy, and will be measured again before this branch is
-finished. No human playtest has confirmed any of it. Results come from bots, either the scripted ones
-in `tests/bots.ts` or the playtest tools in `tools/playtest/`.
+Everything under [Current results](#current-results) was measured on these configs. No human playtest
+has confirmed any of it. Results come from bots, either the scripted ones in `tests/bots.ts` or the
+playtest tools in `tools/playtest/`.
 
 Every search report, tier run, and sweep record shows the config it ran on. If a hash there differs
 from this table, the result is out of date. See [Keeping this file current](#keeping-this-file-current).
@@ -73,7 +72,7 @@ at wave 20, and 20 at wave 30, which is all of a Hard run's lives.
 | `waves` | 30 | Run length |
 | `bossEvery` | 10 | Bosses at waves 10, 20, and 30 |
 | `bossBudget` | 1 | Boss waves use a normal budget |
-| `bossHealthCap` | 20,500 | Highest boss health on Hard, scaled by `healthScale`, so the final boss can be killed |
+| `bossHealthCap` | 21,000 | Highest boss health on Hard, scaled by `healthScale`, so the final boss can be killed |
 | `baseHealth` | 240 | Wave 1 budget |
 | `ramp` | 0.3 | Steady early growth |
 | `growth` | 1.10 | 10% compounding growth per wave |
@@ -93,7 +92,7 @@ at wave 20, and 20 at wave 30, which is all of a Hard run's lives.
 | 20 | 9,834 | Boss, 8,350 HP; 10 runners, 148 HP |
 | 25 | 19,384 | 22 blips, 881 HP |
 | 29 | 32,534 | 15 blips, 1,600 HP; 10 runners, 853 HP |
-| 30 | 36,929 | Boss, 20,500 HP; 13 runners, 533 HP |
+| 30 | 36,929 | Boss, 21,000 HP; 13 runners, 533 HP |
 
 Easy uses the same waves with 50% of this health. The final boss is capped, so wave 30 has less
 total health than its budget.
@@ -104,9 +103,13 @@ Each tower can reach level 3. A level's price is its `costShare` times the tower
 
 | Tower | Level 2 | Price | Level 3 | Price |
 | --- | --- | --- | --- | --- |
-| Kick | More damage | $50 | Wider splash and more damage | $100 |
-| Hat | More range | $40 | More damage | $80 |
-| Synth | More damage | $70 | One more chain link | $140 |
+| Kick | 36 damage | $50 | 72 damage, 1.75 splash | $75 |
+| Hat | 4.5 range | $40 | 6 damage | $60 |
+| Synth | 30 damage | $70 | 72 damage, 3 chain links | $105 |
+
+Level 3 costs 150% of a tower's cost, not the planned 200%, because at 200% no 60% focused build won.
+Most of the power sits in level 3, because Strong bots buy level 2 across the board first, so level 3
+helps planned builds without helping them win.
 
 The scripted bots in `tests/bots.ts` never buy upgrades. They measure tower-only play, and the
 two-thirds board target in `tests/balance.test.ts` counts their towers, so spending on levels would
@@ -164,9 +167,9 @@ time. A player who needs longer can turn **Auto** off.
 | Mode | Tier | Win rate | Typical final wave | Wave reached by the worst 10% |
 | --- | --- | --- | --- | --- |
 | Hard | Casual | 0% | 21 | 18 |
-| Hard | Competent | 0.5% | 30 | 30 |
-| Hard | Strong | 1% | 30 | 30 |
-| Hard | Expert | 91.5% | 30 | 30 |
+| Hard | Competent | 0% | 30 | 30 |
+| Hard | Strong | 0% | 30 | 30 |
+| Hard | Expert | 50% | 30 | 30 |
 | Easy | Casual | 76.5% | 30 | 30 |
 | Easy | Competent | 100% | 30 | 30 |
 | Easy | Strong | 100% | 30 | 30 |
@@ -179,9 +182,9 @@ uses a different random tower mix. Expert replays a search build with 5% seeded 
 The scripted Casual bot and the Casual tier differ. The scripted bot always follows the same rules
 and falls at wave 15 on Hard, while the tier's random mixes usually reach wave 21.
 
-Hard now loses its games at the final boss: 17 of the 200 Expert games, 199 of the 200 Competent
-games, and 198 of the 200 Strong games ended there. Casual games most often stop at wave 20, where
-67 of 200 died.
+Hard now loses its games at the final boss: 99 of the 200 Expert games, 200 of the 200 Competent
+games, and 196 of the 200 Strong games ended there. Casual games most often stop at wave 20, where
+67 of 200 died. Strong bought a mean of 13.25 upgrades per game.
 
 ### Strategy search
 
@@ -189,23 +192,22 @@ Each search below played 54,000 games with the settings in `tools/playtest/searc
 
 | Search | Best result | Winning styles |
 | --- | --- | --- |
-| Hard | Won with 19 lives | 3 of 45 |
-| Hard, no hats | Reached wave 30 and lost | 0 of 21 |
-| Hard, no kicks | Won with 19 lives | 3 of 15 |
-| Hard, no synths | Reached wave 30 and lost | 0 of 15 |
-| Easy | Won with 30 lives | 44 of 45 |
+| Hard | Won with 20 lives | 36 of 45 |
+| Hard, no hats | Won with 20 lives | 9 of 20 |
+| Hard, no kicks | Won with 20 lives | 14 of 15 |
+| Hard, no synths | Won with 20 lives | 11 of 15 |
+| Easy | Won with 30 lives | 45 of 45 |
 
-- **Both expert builds came from the standard Hard search on this config.** They won with 19 and 18
-  lives.
-- **Banning hats no longer stops a build at wave 20.** Without hats, the best Hard build reaches
-  wave 30 and loses with no lives left.
-- **Focused builds still fall short.** The best score among builds with 60% or more of their towers
-  in one `col % 4` group is 29.7, from `Chord focus: focused`, so they reach the final boss and lose
-  rather than winning.
+- **Both expert builds came from the standard Hard search on this config.** Each wins with all 20
+  lives, and build b comes from the winning style with the most kick spending.
+- **A no-hat build wins too.** The no-hat search filled 9 of its 20 styles with wins, and its best
+  wins with all 20 lives.
+- **Focused builds win now.** The best build with 60% or more of its towers in one `col % 4` group is
+  the no-hat search's 100% focused build, 19 towers, and it wins with all 20 lives.
+- **Kick-heavy builds win.** Expert build b spends 60.6% of its money on kicks and wins with all 20
+  lives. The best no-synth build spends 37% on kicks and also wins.
 - **The 85 cells split into `col % 4` classes of 22, 20, 21, and 22**, so a 60% focused build has at
   most 36 towers.
-- **Every winning Hard build spends under 20% on kicks.** The best standard-search win used 5 of its
-  55 towers, and the no-kick search also found winning builds.
 
 ### Browser replay
 
@@ -215,13 +217,14 @@ The current expert builds have not been replayed in a browser.
 
 These come from the `boss-cap` sweep and `tools/playtest/bound.ts`.
 
-- The final boss's 20,500 HP is 81% of the 25,157 damage a board bought with all possible income can
+- The final boss's 21,000 HP is 58.8% of the 35,721 damage a board bought with all possible income can
   deal.
-- The best random bot deals 20,588 damage on Hard, just over the final boss's 20,500 HP.
-- The widened sweep proposes no value: no cap it tested, from 17,000 to 24,000, met every target. The
-  current setting misses the sweep's bot-win target, because random bots win 2.1% of Hard games, and
-  its fall-short target, because the best random bot kills the final boss. As for every sweep, that
-  is a proposal only, and a person decides whether to change the cap.
+- The best random bot deals 21,167 damage on Hard, just over the final boss's 21,000 HP.
+- The widened sweep proposes no value, and it does not pass: no cap it tested, from 17,000 to 24,000,
+  met every target. The current setting misses the sweep's bot-win target, because random bots win
+  1.55% of Hard games, above its 1% limit, and its fall-short target, because the best random bot
+  kills the final boss. As for every sweep, that is a proposal only, and a person decides whether to
+  change the cap.
 
 ## How to retune
 
@@ -232,6 +235,7 @@ These come from the `boss-cap` sweep and `tools/playtest/bound.ts`.
 | Bosses are too strong or too weak | `bossHealthCap` for the final boss, `bossBudget` for all bosses |
 | Board fills too quickly or too slowly | `enemiesPerWave`, then `waveBonus` |
 | Only one mode feels wrong | That mode's `healthScale`, `startMoney`, or `waveBonus` |
+| Upgrades too strong or too weak | `TOWER_UPGRADES`, level 3 first for planned builds and level 2 for Strong bots |
 
 Change one setting at a time, then run `npm test` and read the balance results. Run
 `npx vitest run tests/balance.test.ts --reporter=verbose` to print each bot's result.
@@ -255,8 +259,8 @@ targets aren't in `tools/playtest/targets.ts` yet.
 
 ## Keeping this file current
 
-Any change to tower, upgrade, enemy, chord, refund, wave, or difficulty values changes a config hash, which
-makes the results above out of date. `tests/balance-docs.test.ts` then fails, which blocks the
+Any change to tower, upgrade, enemy, chord, refund, wave, or difficulty values changes a config hash,
+which makes the results above out of date. `tests/balance-docs.test.ts` then fails, which blocks the
 deploy, until the hashes in [Status](#status) are updated. In the same change:
 
 1. Run the five searches in `tools/playtest/searches/` (not `smoke.json`), the `boss-cap` sweep, and
@@ -271,13 +275,15 @@ config hash matches the [Status](#status) table.
 
 - **Human testing:** the bots are a stand-in. Hard is meant to be beatable by a thoughtful player,
   and that has not been proven.
-- **Hard comes down to the final boss:** Expert wins 91.5% of its 200 games, and the standard
-  search's three winning builds finish with 19, 18, and 15 of 20 lives, while 199 of 200 Competent
-  games and 198 of 200 Strong games end at the final boss. A person still has to show that Hard can
-  be won, and that one deciding fight feels fair.
-- **Kicks lag behind:** Hard's winning builds spend little on kicks, so review kicks before adding
-  tower upgrades.
-- **Easy can be won without killing the final boss:** 145 of the 153 Easy Casual wins in
+- **Hard comes down to the final boss:** Expert wins 50% of its 200 games, and both expert builds
+  win with all 20 lives, while 200 of 200 Competent games and 196 of 200 Strong games end at the
+  final boss. A person still has to show that Hard can be won, and that one deciding fight feels
+  fair.
+- **Kicks no longer lag behind:** expert build b spends 60.6% on kicks and wins, so the earlier
+  finding that Hard wins spent little on kicks no longer holds.
+- **Level 3 is strong:** winning search builds often keep all 20 lives, so a person should check
+  that level 3 doesn't make Hard too easy once a player finds it.
+- **Easy can be won without killing the final boss:** 151 of the 153 Easy Casual wins in
   `tiers-easy-casual.jsonl` have no `30` in `bossKills`. A leaked final boss costs 20 of Easy's 30
   lives, so a casual build can let it through and still win.
 - **Easy offers little challenge to steady builders:** Casual bots win 76.5% of their games, while
@@ -374,6 +380,16 @@ with the game's own audio clock driving each step. Both won with 2 lives left, a
 sim at the end of all 30 waves. A script placed the towers and started each wave at the exact step
 the sim does, so this shows the browser plays the same game as the sim, not that a person can match
 that timing. This used the 13,000 cap config.
+
+### Tower upgrades (2026-11-02)
+
+`bossHealthCap` went from 20,500 to 21,000 on configs `4ce87782` for Hard and `ddbd5ac2` for Easy.
+The old search and tier results changed with it: the standard Hard search's best build won with 19
+lives, the no-hat and no-synth searches reached wave 30 and lost, Competent won 1 game of 200 and
+Strong won 2, with 199 and 198 of their games ending at the final boss, and Expert won 91.5%.
+
+Lost boss waves used to score by all wave damage, which splash and overkill could fill before the
+boss died, so the search couldn't see near-wins. They now score by boss damage.
 
 ## Research
 

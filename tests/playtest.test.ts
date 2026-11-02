@@ -73,7 +73,7 @@ describe('playGame', () => {
     const result = playGame(policyBot(base(1, 1, 1), rules), DIFFICULTIES.hard, rules, 1);
     expect(result.result).toBe('lost');
     expect(result.wave).toBe(30);
-    expect(result.finalWaveProgress).toBeCloseTo((result.bossDamageByWave['30'] ?? 0) / 20500);
+    expect(result.finalWaveProgress).toBeCloseTo((result.bossDamageByWave['30'] ?? 0) / 21000);
     expect(result.finalWaveProgress).toBeLessThan(1);
   });
 

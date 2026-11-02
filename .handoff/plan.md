@@ -1,89 +1,38 @@
-# Plan: tower upgrades, part 2 (boss wave score and mid-width pads)
+# Plan: tower upgrades, part 4 (balance doc corrections)
 
 ## Goal
 
-Make a lost boss wave score by damage dealt to the boss, so the search can tell near-wins apart, and stop the five pad labels overflowing at widths from 761px to 1100px. Change no game value.
+Correct three statements in `docs/balance.md`. Change nothing else.
 
 ## Files to touch
 
 Modify:
 
-- `tools/playtest/bots.ts`
-- `tests/playtest.test.ts`
-- `src/style.css`
-- `docs/references.md`
+- `docs/balance.md`
 
 ## Steps
 
-### 1. Boss wave progress (`tools/playtest/bots.ts`)
+1. In **Skill tiers**, in the paragraph that starts `Hard now loses its games at the final boss`, delete the sentence `196 of the 200 Strong games ended at wave 30, and Strong bought a mean of 13.25 upgrades per game.` and put `Strong bought a mean of 13.25 upgrades per game.` in its place. Rewrap the paragraph to about 100 columns.
 
-In `playGame`, replace the `waveHealth` and `finalWaveProgress` code with:
+2. In **Strategy search**, replace the bullet that starts `**The best build with 30% or more of its spending on kicks spends 33% of it on kicks**` with:
 
-```ts
-const groups = sim.waves[sim.wave - 1] ?? [];
-const waveHealth = groups.reduce((sum, group) => sum + group.hp * group.count, 0);
-const boss = groups.find((group) => group.type === 'boss');
-const waveProgress = boss
-  ? (bossDamageByWave[String(sim.wave)] ?? 0) / boss.hp
-  : waveDamage / (waveHealth || 1);
-const finalWaveProgress = Math.min(1, waveProgress);
+```md
+- **Kick-heavy builds win.** Expert build b spends 60.6% of its money on kicks and wins with all 20
+  lives. The best no-synth build spends 37% on kicks and also wins.
 ```
 
-### 2. Test (`tests/playtest.test.ts`)
+   In the first bullet of that list, replace `and the second spends the most on kicks of any winning style in that search.` with `and build b comes from the winning style with the most kick spending.`
 
-Add this inside `describe('playGame', ...)`, after `records boss kills, boss damage, and the final boss wave`:
+3. In **Open questions**, in the **Kicks no longer lag behind** bullet, replace `the best winning builds now spend 33% to 37% on kicks` with `expert build b spends 60.6% on kicks and wins`. Rewrap that bullet to about 100 columns.
 
-```ts
-it('scores a lost boss wave by the damage dealt to the boss', () => {
-  const result = playGame(policyBot(base(1, 1, 1), rules), DIFFICULTIES.hard, rules, 1);
-  expect(result.result).toBe('lost');
-  expect(result.wave).toBe(30);
-  expect(result.finalWaveProgress).toBeCloseTo((result.bossDamageByWave['30'] ?? 0) / 20500);
-  expect(result.finalWaveProgress).toBeLessThan(1);
-});
-```
-
-### 3. Pads (`src/style.css`)
-
-Add this block directly before the `/* ---- Small phones ---- */` comment:
-
-```css
-/* ---- Mid-size screens: five pads need stacked labels ---- */
-@media (min-width: 761px) and (max-width: 1100px) {
-  .pad {
-    grid-template-columns: 1fr;
-    justify-items: center;
-    text-align: center;
-    padding-inline: 2px;
-  }
-
-  .pad b {
-    font-size: 0.6rem;
-  }
-
-  .pad canvas {
-    grid-row: auto;
-    width: 24px;
-    height: 24px;
-  }
-}
-```
-
-### 4. Docs (`docs/references.md`)
-
-In the `npm run playtest:search` entry of Playtest harness, add this sentence after the sentence that ends `plus how many towers share a \`col % 4\` class.`: `A lost plan scores by the waves it cleared plus its progress through the last wave, which on a boss wave is the share of the boss's health it removed.`
+4. In **History**, under `### Tower upgrades (2026-11-02)`, replace `and Competent and Strong each won about 1 game of 200 with nearly every loss at the final boss.` with `Competent won 1 game of 200 and Strong won 2, with 199 and 198 of their games ending at the final boss, and Expert won 91.5%.` Rewrap that paragraph to about 100 columns.
 
 ## Acceptance
 
 Run these from the repository root.
 
-- `npm run typecheck` exits 0.
 - `npm run test:sandbox` exits 0 with no failed tests.
-
-Verifier only:
-
-- `npm test` exits 0.
-- `npm run build` exits 0.
+- `git diff --stat -- . ":(exclude).handoff"` lists only `docs/balance.md` as changed by this run, in addition to the files already changed before it started.
 
 ## Parallel work
 
@@ -94,18 +43,14 @@ None — do it sequentially.
 - Do not commit, push, or switch branches.
 - Do not run `git add`, `git mv`, `git stash`, or `git reset`.
 - Do not touch files outside **Files to touch** except `.handoff/report.md`.
-- Do not change `src/config.ts` or `tests/balance.test.ts`.
-- Do not run the `Verifier only:` commands.
 - If any command fails with `spawn EPERM`, stop and report it.
 - Do not request wider sandbox access, set `NODE_OPTIONS`, or stub modules to get past it.
-- Do not add dependencies, and do not change `package.json` or `package-lock.json`.
 
 ## Out of scope
 
-- Upgrade values, `bossHealthCap`, and any other balance value.
-- Running searches, sweeps, or tiers.
-- Other layout changes.
+- Any other edit to `docs/balance.md` or any other file.
+- Running the harness.
 
 ## If blocked
 
-If a step can't be done as written, or the new test fails, stop, write what happened to `.handoff/report.md`, and leave the working tree as it is.
+If a quoted sentence isn't found exactly, stop, write what happened to `.handoff/report.md`, and leave the file as it is.

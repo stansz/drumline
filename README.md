@@ -22,8 +22,8 @@ start every wave yourself. Every leaked enemy costs lives; clear all 30 waves
 before your lives run out to win. A boss arrives every 10 waves, and one that
 gets through costs 5, 10, then 20 lives. Select **Upgrade** and click a tower
 to buy its next level, up to level 3, even during a wave. Level 2 costs the
-tower's price again and level 3 costs twice its price. **Sell** refunds 70% of
-everything spent on a tower.
+tower's price again and level 3 costs one and a half times its price. **Sell**
+refunds 70% of everything spent on a tower.
 
 | Mode | Lives | Starting money | Wave bonus | Enemy health |
 | --- | --- | --- | --- | --- |

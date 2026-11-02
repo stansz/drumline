@@ -117,11 +117,11 @@ describe('planBot', () => {
     expect(sim.towers[0]?.level).toBe(2);
     expect(sim.money).toBe(0);
 
-    sim.money = 99;
+    sim.money = 74;
     bot.onBar?.({ sim, rng: makeRng(1) });
     expect(sim.towers[0]?.level).toBe(2);
 
-    sim.money = 100;
+    sim.money = 75;
     bot.onBar?.({ sim, rng: makeRng(1) });
     expect(sim.towers[0]?.level).toBe(3);
     expect(sim.money).toBe(0);

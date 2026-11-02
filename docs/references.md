@@ -122,11 +122,12 @@ deploy workflow uses Node 22, but it only runs the tests and the build, not thes
   `values`, `games`, and `seed`. The proposal is the passing value with the largest worst-case
   margin across the targets.
 - `npm run playtest:search` runs a MAP-Elites search over build plans, which are ordered lists of
-  towers to buy. A build plan can also hold `upgrade` steps, which buy the next level of the tower on
-  their cell. It keeps the best plan for each style, where a style is the share of money spent on
-  kicks and synths, plus how many towers share a `col % 4` class. A lost plan scores by the waves it cleared plus its progress through the last wave, which on a boss wave is the share of the boss's health it removed. A search file can set
-  `bannedTowers`, which shows how much a tower is worth. It writes `report.md`, `archive.json`,
-  and `best-plan.json`.
+  towers to buy. A build plan can also hold `upgrade` steps, which buy the next level of the tower
+  on their cell. It keeps the best plan for each style, where a style is the share of money spent on
+  kicks and synths, plus how many towers share a `col % 4` class. A lost plan scores by the waves it
+  cleared plus its progress through the last wave, which on a boss wave is the share of the boss's
+  health it removed. A search file can set `bannedTowers`, which shows how much a tower is worth. It
+  writes `report.md`, `archive.json`, and `best-plan.json`.
 - `Policy.upgradeAt` sets when a policy bot starts buying levels instead of towers.
 - `npm run playtest:tiers` runs Casual, Competent, Strong, and Expert bots and writes `tiers.md`.
   Expert replays a search's best plan with seeded mistakes. `--plan` takes a `best-plan.json` or a

@@ -61,12 +61,12 @@ describe('boss health cap', () => {
   }
 
   it('caps the final boss on hard', () => {
-    expect(bossHp(30, DIFFICULTIES.hard)).toBe(20500);
+    expect(bossHp(30, DIFFICULTIES.hard)).toBe(21000);
     expect(bossHp(30, uncappedHard)).toBe(29997);
   });
 
   it('scales the cap by healthScale on easy', () => {
-    expect(bossHp(30, DIFFICULTIES.easy)).toBe(10250);
+    expect(bossHp(30, DIFFICULTIES.easy)).toBe(10500);
   });
 
   it('leaves the final wave runners alone', () => {

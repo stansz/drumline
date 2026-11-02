@@ -46,10 +46,10 @@ describe('tower levels', () => {
     expect(sim.towers[0]?.level).toBe(1);
   });
 
-  it('charges a kick 50, then 100, and then stops at max level', () => {
+  it('charges a kick 50, then 75, and then stops at max level', () => {
     const rules = resolveRules();
     expect(upgradeCost(rules, 'kick', 1)).toBe(50);
-    expect(upgradeCost(rules, 'kick', 2)).toBe(100);
+    expect(upgradeCost(rules, 'kick', 2)).toBe(75);
     expect(upgradeCost(rules, 'kick', 3)).toBeNull();
   });
 });
@@ -93,11 +93,11 @@ describe('upgradeTower', () => {
     sim.money = 1000;
     expect(sim.upgradeTower(5, 0)).toBe(true);
     expect(sim.upgradeTower(5, 0)).toBe(true);
-    expect(towerSpent(sim.rules, 'kick', 3)).toBe(200);
+    expect(towerSpent(sim.rules, 'kick', 3)).toBe(175);
     sim.money = 0;
     expect(sim.sellTower(5, 0)).toBe(true);
-    expect(sim.money).toBe(Math.floor(200 * sim.rules.sellRefund));
-    expect(sim.money).toBe(140);
+    expect(sim.money).toBe(Math.floor(175 * sim.rules.sellRefund));
+    expect(sim.money).toBe(122);
   });
 });
 

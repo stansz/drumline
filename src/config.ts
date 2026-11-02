@@ -59,16 +59,16 @@ export interface TowerUpgrade {
 // Levels 2 and 3 of each tower, in order. They never change when a tower fires or chords.
 export const TOWER_UPGRADES: Record<TowerType, readonly TowerUpgrade[]> = {
   kick: [
-    { costShare: 1, damage: 12 },
-    { costShare: 2, damage: 12, splash: 0.5 },
+    { costShare: 1, damage: 24 },
+    { costShare: 1.5, damage: 36, splash: 0.75 },
   ],
   hat: [
     { costShare: 1, range: 1 },
-    { costShare: 2, damage: 2 },
+    { costShare: 1.5, damage: 3 },
   ],
   synth: [
-    { costShare: 1, damage: 9 },
-    { costShare: 2, chain: 1 },
+    { costShare: 1, damage: 12 },
+    { costShare: 1.5, damage: 42, chain: 1 },
   ],
 };
 
@@ -78,7 +78,7 @@ export const TOWER_INFO: Record<
 > = {
   kick: { name: 'Kick', role: 'Splash', description: 'Hits everything near its target, once per bar.', upgrades: ['more damage', 'wider splash and more damage'] },
   hat: { name: 'Hat', role: 'Rapid', description: 'Small hits, four times per bar.', upgrades: ['more range', 'more damage'] },
-  synth: { name: 'Synth', role: 'Chain', description: 'Zaps its target, then arcs to 2 more enemies at half damage, once per bar.', upgrades: ['more damage', 'one more chain link'] },
+  synth: { name: 'Synth', role: 'Chain', description: 'Zaps its target, then arcs to 2 more enemies at half damage, once per bar.', upgrades: ['more damage', 'much more damage and one more chain link'] },
 };
 
 export interface EnemyStats {
@@ -167,7 +167,7 @@ export const WAVE_CURVE: WaveCurve = {
   waves: 30,
   bossEvery: 10,
   bossBudget: 1,
-  bossHealthCap: 20500,
+  bossHealthCap: 21000,
   baseHealth: 240,
   ramp: 0.3,
   growth: 1.1,
