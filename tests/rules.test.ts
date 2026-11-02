@@ -56,6 +56,40 @@ describe('patched rules', () => {
   });
 });
 
+describe('boss leaks', () => {
+  function leakedLives(wave: number, rules = DEFAULT_RULES): number {
+    const sim = new Sim(DIFFICULTIES.hard, rules);
+    sim.lives = 1000;
+    sim.wave = wave - 1;
+    sim.startWave();
+    while (sim.phase === 'wave') sim.step();
+    const runners = sim.waves[wave - 1]?.find((group) => group.type === 'runner')?.count ?? 0;
+    return 1000 - sim.lives - runners;
+  }
+
+  it('costs 5, 10, then 20 lives as the bosses progress', () => {
+    expect(leakedLives(10)).toBe(5);
+    expect(leakedLives(20)).toBe(10);
+    expect(leakedLives(30)).toBe(20);
+  });
+
+  it('reads the leaks from the rules', () => {
+    expect(leakedLives(10, resolveRules({ bossLeaks: [7] }))).toBe(7);
+  });
+
+  it('uses the boss leak once the list runs out', () => {
+    expect(leakedLives(20, resolveRules({ bossLeaks: [7] }))).toBe(ENEMIES.boss.leak);
+  });
+
+  it('a leaked final boss still ends a full-lives run on hard', () => {
+    const sim = new Sim();
+    sim.wave = 29;
+    sim.startWave();
+    while (sim.phase === 'wave') sim.step();
+    expect(sim.phase).toBe('lost');
+  });
+});
+
 describe('hit damage', () => {
   it('reports chain falloff', () => {
     const sim = new Sim();

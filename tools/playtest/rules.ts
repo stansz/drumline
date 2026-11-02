@@ -16,6 +16,7 @@ export interface RulesPatch {
   chordBonusPerTower?: number;
   chordMaxTowers?: number;
   sellRefund?: number;
+  bossLeaks?: number[];
 }
 
 export interface DifficultyPatch {
@@ -46,6 +47,7 @@ export function resolveRules(patch: RulesPatch = {}): Rules {
     chordBonusPerTower: patch.chordBonusPerTower ?? DEFAULT_RULES.chordBonusPerTower,
     chordMaxTowers: patch.chordMaxTowers ?? DEFAULT_RULES.chordMaxTowers,
     sellRefund: patch.sellRefund ?? DEFAULT_RULES.sellRefund,
+    bossLeaks: patch.bossLeaks ?? DEFAULT_RULES.bossLeaks,
   };
 }
 

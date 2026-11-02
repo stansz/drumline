@@ -18,8 +18,8 @@ Pushing to `main` deploys to GitHub Pages, and a failing test blocks the deploy.
 ## Rules
 
 - Keep `src/sim.ts` free of the DOM, audio, and randomness.
-- In `src/sim.ts`, read tower, enemy, chord, and refund values from `this.rules`, not the config
-  constants, so balance sweeps can change them per game.
+- In `src/sim.ts`, read tower, enemy, boss leak, chord, and refund values from `this.rules`, not
+  the config constants, so balance sweeps can change them per game.
 - Keep `tools/playtest/` free of browser APIs, and keep Node APIs in its `.mjs` files.
 - Don't give a `.mjs` and a `.ts` file in `tools/playtest/` the same base name. Vite resolves
   `./name` to the `.mjs` file, while Node resolves it to the `.ts` file.

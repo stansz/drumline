@@ -20,8 +20,8 @@ starts 4 bars after the last one clears, which is 8 seconds at 120 BPM. Press
 the button during the countdown to send the wave early, or turn **Auto** off to
 start every wave yourself. Every leaked enemy costs lives; clear all 30 waves
 before your lives run out to win. A boss arrives every 10 waves, and one that
-gets through costs 20 lives. Select **Sell** and click a tower to refund 70% of
-its cost.
+gets through costs 5, 10, then 20 lives. Select **Sell** and click a tower to
+refund 70% of its cost.
 
 | Mode | Lives | Starting money | Wave bonus | Enemy health |
 | --- | --- | --- | --- | --- |

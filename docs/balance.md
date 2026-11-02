@@ -10,8 +10,8 @@ Last measured 2026-11-01, on these configs:
 
 | Mode | Config hash |
 | --- | --- |
-| Hard | `d2563c15` |
-| Easy | `6ed440b5` |
+| Hard | `4ce87782` |
+| Easy | `ddbd5ac2` |
 
 Everything under [Current results](#current-results) was measured on these configs. No human
 playtest has confirmed any of it. Results come from bots, either the scripted ones in `tests/bots.ts`
@@ -62,7 +62,8 @@ Boss waves multiply this by `bossBudget`. The steps are:
 | 3, 6, 9, ... | 30% brutes, 70% runners |
 
 Enemy speed never changes. Kill rewards are flat too, so late enemies get tougher without paying
-more, and enemy numbers are what grow income.
+more, and enemy numbers are what grow income. A boss that gets through costs 5 lives at wave 10, 10
+at wave 20, and 20 at wave 30, which is all of a Hard run's lives.
 
 ### Current curve
 
@@ -146,7 +147,7 @@ time. A player who needs longer can turn **Auto** off.
 
 | Mode | Tier | Win rate | Typical final wave | Wave reached by the worst 10% |
 | --- | --- | --- | --- | --- |
-| Hard | Casual | 0% | 20 | 18 |
+| Hard | Casual | 0% | 21 | 18 |
 | Hard | Competent | 0.5% | 30 | 30 |
 | Hard | Strong | 1% | 30 | 30 |
 | Hard | Expert | 91.5% | 30 | 30 |
@@ -160,11 +161,11 @@ uses a different random tower mix. Expert replays a search build with 5% seeded 
 `tests/fixtures/hard-expert-a.json` on Hard and the best plan from `searches/easy.json` on Easy.
 
 The scripted Casual bot and the Casual tier differ. The scripted bot always follows the same rules
-and falls at wave 15 on Hard, while the tier's random mixes usually reach wave 20.
+and falls at wave 15 on Hard, while the tier's random mixes usually reach wave 21.
 
-Hard now loses its games at the final boss: 17 of the 200 Expert games, 198 of the 200 Competent
-games, and 198 of the 200 Strong games ended there. Casual games mostly stop at wave 20, where 167 of
-200 died.
+Hard now loses its games at the final boss: 17 of the 200 Expert games, 199 of the 200 Competent
+games, and 198 of the 200 Strong games ended there. Casual games most often stop at wave 20, where
+67 of 200 died.
 
 ### Strategy search
 
@@ -172,7 +173,7 @@ Each search below played 54,000 games with the settings in `tools/playtest/searc
 
 | Search | Best result | Winning styles |
 | --- | --- | --- |
-| Hard | Won with 19 lives | 3 of 47 |
+| Hard | Won with 19 lives | 3 of 45 |
 | Hard, no hats | Reached wave 30 and lost | 0 of 21 |
 | Hard, no kicks | Won with 19 lives | 3 of 15 |
 | Hard, no synths | Reached wave 30 and lost | 0 of 15 |
@@ -183,8 +184,8 @@ Each search below played 54,000 games with the settings in `tools/playtest/searc
 - **Banning hats no longer stops a build at wave 20.** Without hats, the best Hard build reaches
   wave 30 and loses with no lives left.
 - **Focused builds still fall short.** The best score among builds with 60% or more of their towers
-  in one `col % 4` group is 28.8, from `Chord focus: focused`, so they lose at wave 29 rather than
-  reaching the final boss.
+  in one `col % 4` group is 29.7, from `Chord focus: focused`, so they reach the final boss and lose
+  rather than winning.
 - **The 85 cells split into `col % 4` classes of 22, 20, 21, and 22**, so a 60% focused build has at
   most 36 towers.
 - **Every winning Hard build spends under 20% on kicks.** The best standard-search win used 5 of its
@@ -254,12 +255,15 @@ config hash matches the [Status](#status) table.
 
 - **Human testing:** the bots are a stand-in. Hard is meant to be beatable by a thoughtful player,
   and that has not been proven.
-- **Hard comes down to the final boss:** Expert wins 91.5% of its 200 games, and the two winning
-  search builds finish with 19 and 18 of 20 lives, while 198 of 200 Competent games and 198 of 200
-  Strong games end at the final boss. A person still has to show that Hard can be won, and that one
-  deciding fight feels fair.
+- **Hard comes down to the final boss:** Expert wins 91.5% of its 200 games, and the standard
+  search's three winning builds finish with 19, 18, and 15 of 20 lives, while 199 of 200 Competent
+  games and 198 of 200 Strong games end at the final boss. A person still has to show that Hard can
+  be won, and that one deciding fight feels fair.
 - **Kicks lag behind:** Hard's winning builds spend little on kicks, so review kicks before adding
   tower upgrades.
+- **Easy can be won without killing the final boss:** 145 of the 153 Easy Casual wins in
+  `tiers-easy-casual.jsonl` have no `30` in `bossKills`. A leaked final boss costs 20 of Easy's 30
+  lives, so a casual build can let it through and still win.
 - **Easy offers little challenge to steady builders:** Casual bots win 76.5% of their games, while
   Competent bots win every game without losing a life. A Normal mode could fill that gap.
 - **Late collapse on Hard:** runs hold steady and then fall apart quickly. If that feels abrupt,
@@ -341,6 +345,11 @@ The old search results, from the `90999138` config:
 - **Several mixes reach wave 30 on Hard.** They run from 12/12/31 to 29/38/6 kicks, hats, and synths.
 - **Easy punishes almost nothing.** Nearly every style wins, including builds with no synths and
   builds with no hats.
+
+### Escalating boss leaks (2026-11-01)
+
+Boss leaks changed from 20 lives for every boss to 5, 10, and 20, on config `d2563c15` for Hard and
+`6ed440b5` for Easy. This softens wave 20 for Casual play without changing the final boss.
 
 ### Browser replay of the old expert builds (2026-11-01)
 

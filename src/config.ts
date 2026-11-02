@@ -20,6 +20,9 @@ export const PATH_WAYPOINTS: ReadonlyArray<readonly [number, number]> = [
 
 export const SELL_REFUND = 0.7;
 
+// Lives lost when each boss gets through, in order. Later bosses use ENEMIES.boss.leak.
+export const BOSS_LEAKS: readonly number[] = [5, 10, 20];
+
 export const CHORD_BONUS_PER_TOWER = 0.25;
 export const CHORD_MAX_TOWERS = 6;
 
@@ -69,6 +72,7 @@ export interface Rules {
   chordBonusPerTower: number;
   chordMaxTowers: number;
   sellRefund: number;
+  bossLeaks: readonly number[];
 }
 
 export const DEFAULT_RULES: Rules = {
@@ -77,6 +81,7 @@ export const DEFAULT_RULES: Rules = {
   chordBonusPerTower: CHORD_BONUS_PER_TOWER,
   chordMaxTowers: CHORD_MAX_TOWERS,
   sellRefund: SELL_REFUND,
+  bossLeaks: BOSS_LEAKS,
 };
 
 export interface WaveGroup {

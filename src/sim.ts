@@ -267,6 +267,13 @@ export class Sim {
     return true;
   }
 
+  private leakCost(enemy: Enemy): number {
+    const leak = this.rules.enemies[enemy.type].leak;
+    if (enemy.type !== 'boss') return leak;
+    const bossIndex = this.wave / this.difficulty.curve.bossEvery - 1;
+    return this.rules.bossLeaks[bossIndex] ?? leak;
+  }
+
   private spawnDue(): void {
     const due = this.spawnQueue.filter((spawn) => spawn.atStep <= this.totalSteps);
     if (due.length === 0) return;
@@ -458,7 +465,7 @@ export class Sim {
     for (const enemy of this.enemies) {
       enemy.progress += this.rules.enemies[enemy.type].speed;
       if (enemy.progress >= PATH_LENGTH) {
-        this.lives = Math.max(0, this.lives - this.rules.enemies[enemy.type].leak);
+        this.lives = Math.max(0, this.lives - this.leakCost(enemy));
         events.push({ kind: 'leak', lives: this.lives });
       } else {
         stillAlive.push(enemy);
