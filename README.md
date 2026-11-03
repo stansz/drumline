@@ -4,9 +4,6 @@ A tower defense game where your defense plays the music.
 
 Try it here: https://stansz.github.io/drumline/
 
-A test build with tower upgrades, from the `upgrades` branch, is at
-https://stansz.github.io/drumline/upgrades/
-
 ## How to play
 
 Choose **Easy** or **Hard** to start the audio clock. Enemies march along the path while
@@ -75,7 +72,7 @@ npm run playtest:tiers -- --plan playtest-out/search-hard/best-plan.json --games
 `npm run test:sandbox` runs the same tests inside the Windows `dsh` sandbox, where `npm test` can't
 start. `npm run build` type-checks the project and writes a static site to `dist/`.
 Pushing to `main` deploys that site to GitHub Pages through the included
-workflow, and pushing to `upgrades` rebuilds the `/upgrades/` page. [docs/references.md](docs/references.md) describes how the code fits
+workflow. [docs/references.md](docs/references.md) describes how the code fits
 together.
 
 ## Credits

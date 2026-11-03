@@ -470,16 +470,6 @@ body {
   color: var(--mute);
 }
 
-#channel-label {
-  margin: 0;
-  font: 400 1.1rem/1.1 var(--lcd);
-  color: var(--amber);
-}
-
-#channel-label[hidden] {
-  display: none;
-}
-
 /* ---- Narrow screens ---- */
 @media (max-width: 760px) {
   .deck {

@@ -30,11 +30,10 @@ How Drumline's code fits together. [AGENTS.md](../AGENTS.md) holds the rules.
   `report.md` and `last-run.log` are ignored. Specs record past work, so don't treat their values or
   instructions as current.
 - `playtest-out/`: ignored scratch output from the playtest tools. Results there can be out of date.
-- `.github/workflows/deploy.yml`: builds `main` into the site root and the `upgrades` branch into
-  `/upgrades/`, with `VITE_CHANNEL` set to `stable` or `upgrades`. A push to `main` deploys even when
-  the upgrades tests fail, keeping the last good upgrades page from the Actions cache. A push to
-  `upgrades` runs `upgrades.yml`, which reruns the deploy on `main`, and its failing tests deploy
-  nothing. The `github-pages` environment only accepts deploys from `main`.
+- `.github/workflows/deploy.yml`: tests and builds `main`, then deploys it to GitHub Pages. The
+  `github-pages` environment only accepts deploys from `main`.
+- `public/upgrades/index.html`: sends the old `/upgrades/` test page to the main game, where
+  upgrades shipped.
 
 ## How a step works
 

@@ -555,12 +555,6 @@ for (const [button, difficulty] of modeButtons) {
   if (detail) detail.textContent = `${difficulty.startLives} lives · $${difficulty.startMoney}`;
 }
 
-// The deploy workflow sets this, so testers can tell the upgrades page from the stable one.
-if (import.meta.env.VITE_CHANNEL === 'upgrades') {
-  byId<HTMLParagraphElement>('channel-label').hidden = false;
-  document.title = 'DrumlineTD Upgrades';
-}
-
 for (let i = 0; i < 16; i += 1) {
   const step = document.createElement('span');
   step.className = `g${Math.floor(i / 4)}`;

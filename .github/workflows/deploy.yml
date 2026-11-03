@@ -1,21 +1,10 @@
 name: Deploy to GitHub Pages
 
-# Builds main into the site root and the upgrades branch into /upgrades/, as one artifact.
-# A push to upgrades reaches this through upgrades.yml, which runs it on main with source=upgrades.
-
 on:
   push:
     branches:
       - main
   workflow_dispatch:
-    inputs:
-      source:
-        description: Branch whose push started this run
-        type: choice
-        options:
-          - main
-          - upgrades
-        default: main
 
 permissions:
   contents: read
@@ -31,8 +20,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-        with:
-          ref: main
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -40,50 +27,12 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
-        env:
-          VITE_CHANNEL: stable
-
-      - id: upgrades
-        name: Find the upgrades branch
-        run: echo "sha=$(git ls-remote origin refs/heads/upgrades | cut -f1)" >> "$GITHUB_OUTPUT"
-      - if: steps.upgrades.outputs.sha != ''
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ steps.upgrades.outputs.sha }}
-          path: upgrades-src
-      # Failing upgrades tests stop the deploy only when a push to upgrades started this run.
-      - id: upgrades-build
-        name: Build the upgrades page
-        if: steps.upgrades.outputs.sha != ''
-        continue-on-error: ${{ inputs.source != 'upgrades' }}
-        working-directory: upgrades-src
-        env:
-          VITE_CHANNEL: upgrades
-        run: |
-          npm ci
-          npm test
-          npm run build
-          cp -r dist ../dist/upgrades
-      - if: steps.upgrades-build.outcome == 'success'
-        uses: actions/cache/save@v6
-        with:
-          path: dist/upgrades
-          key: upgrades-dist-${{ steps.upgrades.outputs.sha }}
-      # Otherwise keep the last good upgrades page, because the artifact replaces the whole site.
-      - if: steps.upgrades.outputs.sha != '' && steps.upgrades-build.outcome != 'success'
-        uses: actions/cache/restore@v6
-        with:
-          path: dist/upgrades
-          key: upgrades-dist-none
-          restore-keys: upgrades-dist-
-
       - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
   deploy:
     needs: build
-    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
